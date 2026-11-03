@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The project follows
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-11-03
+
 - Series of Tubes is now set in Australia: the whole world is on the map, but the game is Australian, with every state and territory, Tasmania across Bass Strait, and PoPs overseas only where Australian traffic goes to peer: Singapore, Kuala Lumpur, Hong Kong, Tokyo, Auckland, Los Angeles, San Jose, Ashburn, London and Marseille. Networks, cables, exchanges and conferences are all Australian now, with puns to match.
 - All 121 Nearly Broadband Network points of interconnect are on the map, each with the homes it serves. To sell broadband around a POI, open a POP there, rent an NNI port (10G or 100G) and haul it home over a leased wave or your own dark fibre; the port's size caps what the area can pull.
 - Every home you connect is an AVC on your bill, and every NNI port has its monthly rent, so each POI area is a small business of its own.
