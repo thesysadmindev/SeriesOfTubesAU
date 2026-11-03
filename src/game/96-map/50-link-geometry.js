@@ -8,7 +8,7 @@ function linkGroups(){const m=new Map();for(const l of S.links){const key=gKey(l
 // Mixed sizes are spelled out per size ("2×800G + 400G"): "2 × 1.2T" read like two 1.2T waves (#56).
 function groupLabel(grp,up){const n=[];for(const x of grp)n[x.tier]=(n[x.tier]||0)+1;let s='';for(let t=n.length-1;t>=0;t--)if(n[t])s+=(s?' + ':'')+(n[t]>1||n[t]===grp.length?n[t]+'×':'')+LT[t].n;return s+(up.length<grp.length?` · ${up.length}/${grp.length} ${tr('common.up')}`:'');}
 function linkGeom(l,pl){const i=lineIdx(l,pl);const key=l.id+'|'+i+'|'+(l.cable||'');const h=GEO.get(key);if(h)return h;
-  let pts=l.kind==='df'&&l.own&&l.sub&&Array.isArray(l.seaPath)?seaMapPoints(l.seaPath):null;if(!pts&&l.cable){const cp=cablePair(l.cable,l.a,l.b);if(cp){pts=cp.pts.map(p=>p.slice());const same=pairLinks(l.a,l.b).filter(x=>x.cable===l.cable).indexOf(l);if(same>0)for(let j=1;j<pts.length-1;j++){pts[j][1]+=same*5;}}}
+  let pts=l.kind==='df'&&l.own&&l.sub&&Array.isArray(l.seaPath)?seaMapPoints(l.seaPath,l.a,l.b):null;if(!pts&&l.cable){const cp=cablePair(l.cable,l.a,l.b);if(cp){pts=cp.pts.map(p=>p.slice());const same=pairLinks(l.a,l.b).filter(x=>x.cable===l.cable).indexOf(l);if(same>0)for(let j=1;j<pts.length-1;j++){pts[j][1]+=same*5;}}}
   // Your own subsea cable (#64) follows the shortest commercial cable on the same route, drawn alongside it; with
   // none, a gentle curve. Its shape must not depend on how many waves already run between the two cities.
   if(!pts&&l.kind==='df'&&l.own&&l.sub){const k=pairLinks(l.a,l.b).filter(x=>x.kind==='df'&&x.own&&x.sub).indexOf(l),c0=cablesFor(l.a,l.b).slice().sort((x,y)=>x.km-y.km)[0],cp=c0&&cablePair(c0.cid,l.a,l.b);
@@ -33,15 +33,14 @@ function drawCables(ks){const z=cam.z,selC=UI.drag&&UI.drag.mode==='link'?UI.dra
   // Labels that would sit on another, or on a segment shorter than the name, are left out (a selected city's always show).
   const LB=[],lbOk=(x,y,w,sp,hot)=>{const b=[x-w/2-3,y-7,x+w/2+3,y+7];if(!hot){let mn=Infinity,mx=-Infinity,my=Infinity,My=-Infinity;for(const q of sp){mn=Math.min(mn,q[0]);mx=Math.max(mx,q[0]);my=Math.min(my,q[1]);My=Math.max(My,q[1]);}
       if(Math.hypot(mx-mn,My-my)<w*0.8)return false;if(LB.some(o=>b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1]))return false;}LB.push(b);return true;};
-  const ar=arOn();for(const cp of CABLE_PAIRS){const C=CAB[cp.cid],hot=!!selC&&(cp.a===selC||cp.b===selC);if(!hot&&cached&&z<1.7)continue;if(ar&&!hot&&!(arKind(cp.a)&&arKind(cp.b)))continue;const col=cableCol(C);
+  for(const cp of CABLE_PAIRS){const C=CAB[cp.cid],hot=!!selC&&(cp.a===selC||cp.b===selC);if(!hot&&cached&&z<1.7)continue;const col=cableCol(C);
     for(const k of ks){const sp=cp.pts.map(p=>toS(p[0],p[1],k));let mn=Infinity,mx=-Infinity;for(const q of sp){if(q[0]<mn)mn=q[0];if(q[0]>mx)mx=q[0];}if(mx<-20||mn>CW+20)continue;
       if(hot||!cached){ctx.globalAlpha=hot?0.95:0.4;ctx.strokeStyle=col;ctx.lineWidth=hot?3:1.6;ctx.lineJoin='round';ctx.setLineDash(C.age==='old'?[6,5]:[]);ctx.beginPath();ctx.moveTo(sp[0][0],sp[0][1]);for(let i=1;i<sp.length;i++)ctx.lineTo(sp[i][0],sp[i][1]);ctx.stroke();ctx.setLineDash([]);}
-      if((hot||(z>=1.7&&!ar))&&lbOk(sp[Math.floor(sp.length/2)][0],sp[Math.floor(sp.length/2)][1]-8,ctx.measureText(C.name).width,sp,hot)){const m=sp[Math.floor(sp.length/2)];ctx.globalAlpha=hot?1:0.75;ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.strokeText(C.name,m[0],m[1]-8);ctx.fillStyle=col;ctx.fillText(C.name,m[0],m[1]-8);}
+      if((hot||z>=1.7)&&lbOk(sp[Math.floor(sp.length/2)][0],sp[Math.floor(sp.length/2)][1]-8,ctx.measureText(C.name).width,sp,hot)){const m=sp[Math.floor(sp.length/2)];ctx.globalAlpha=hot?1:0.75;ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.strokeText(C.name,m[0],m[1]-8);ctx.fillStyle=col;ctx.fillText(C.name,m[0],m[1]-8);}
       ctx.globalAlpha=1;}}}
 function bezGeom(l,at){const A=CITY[l.a],B=CITY[l.b];const i=at!==undefined?at:lineIdx(l);const key=l.id+'|b'+i;const hit=GEO.get(key);if(hit)return hit;
   const bx=A.x+wrapDx(A.x,B.x),by=B.y;const dx=bx-A.x,dy=by-A.y,len=Math.hypot(dx,dy)||1;let nx=-dy/len,ny=dx/len;if(ny>0){nx=-nx;ny=-ny;}
-  // Puzzles bow diverse paths well apart, so two routes never read as one.
-  const wide=!!S&&pzOn(),base=Math.max(4,Math.min(len*0.1,90)),step=wide?Math.min(30,len*.14):Math.min(16,len*.06),off0=i<=0?base:(i%2?-1:1)*(base*(i%2?(wide?0.9:0.2):1)+Math.ceil(i/2)*step);
+  const base=Math.max(4,Math.min(len*0.1,90)),step=Math.min(16,len*.06),off0=i<=0?base:(i%2?-1:1)*(base*(i%2?0.2:1)+Math.ceil(i/2)*step);
   const mx=(A.x+bx)/2,my=(A.y+by)/2;
   const sg=Math.sign(off0)||1,mag=Math.abs(off0);
   // Bend around cities in the way, but gently: short links need less room, no curve bows out more than about a
@@ -60,6 +59,3 @@ function bezGeom(l,at){const A=CITY[l.a],B=CITY[l.b];const i=at!==undefined?at:l
   const g={ax:A.x,ay:A.y,bx,by,cx:best[0],cy:best[1],len};GEO.set(key,g);return g;}
 const qpt=(g,t)=>[(1-t)*(1-t)*g.ax+2*(1-t)*t*g.cx+t*t*g.bx,(1-t)*(1-t)*g.ay+2*(1-t)*t*g.cy+t*t*g.by];
 const utilCol=u=>u<=0.001?'#AFC0D6':u<0.65?'#22C47A':u<0.9?'#FFAA1F':'#FF4D5E';
-// How many separate paths (trenches or cables) join this tube's two cities.
-const arPaths=l=>new Set(pairLinks(l.a,l.b).map(gKey)).size;
-const AR_PILLS=[]; // filled while the links are drawn, painted after the cities

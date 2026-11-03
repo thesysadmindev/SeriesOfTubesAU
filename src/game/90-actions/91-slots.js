@@ -1,10 +1,10 @@
 Object.assign(ACT,{
  // Continue a network from the list (or the newest one).
  cont:({id}={})=>{if(!slotOkId(id)){const t=slotTop(slotIdx(true));if(!t)return;id=t.id;}
-   if(id===UI.slot&&S&&!pzOn()){UI.started=true;closeModal();renderAll();return;}
-   slotOpen(id,false,()=>track('game_continue',true));},
+   if(id===UI.slot&&S){UI.started=true;closeModal();renderAll();return;}
+   slotOpen(id,false);},
  // Back to the title with this network kept and saved.
- toTitle:()=>{if(pzOn()){pzLeave();}slotLeave();gameClear();showTitle();},
+ toTitle:()=>{slotLeave();gameClear();showTitle();},
  slotBack:()=>{if(S&&UI.started)closeModal();else showTitle();},
  slotMenu:({id})=>{const h=slotMenuHtml(id);if(h)openModal(h);},
  slotExport:({id})=>exportSlot(id),
@@ -21,12 +21,12 @@ Object.assign(ACT,{
  // no BroadcastChannel) it is taken anyway after a moment: the other window stops writing the moment it notices.
  slotTake:({id})=>{if(!slotOkId(id))return;const w=SLOT.wait={id,go:()=>{if(SLOT.wait!==w)return;SLOT.wait=null;clearTimeout(w.t);slotOpen(id,true);}};
    w.t=setTimeout(w.go,BC?1500:0);try{if(BC)BC.postMessage({t:'take',id});}catch(e){w.go();}},
- rename:()=>{if(!S||!UI.started||pzOn())return;openModal(`<h2 style="font-size:26px">${tr('slots.rename_your_network')}</h2><label class="f" for="rnIn">${tr('title.name_your_network')}</label><div class="network-name"><input class="t" id="rnIn" maxlength="24" value="${esc(S.name)}" autocomplete="off"></div><div class="btns" style="margin-top:12px">${btn(tr('slots.rename'),'renameGo',{},'pink big')}${btn(tr('common.cancel'),'menu',{},'ghost big')}</div>`);},
- renameGo:()=>{const el=$('rnIn');if(!S||!el||pzOn())return;const v=el.value.replace(/\s+/g,' ').trim().slice(0,24);if(!v)return;S.name=v;closeModal();after();toast(tr('slots.renamed_to_name',{name:esc(v)}),'good');},
+ rename:()=>{if(!S||!UI.started)return;openModal(`<h2 style="font-size:26px">${tr('slots.rename_your_network')}</h2><label class="f" for="rnIn">${tr('title.name_your_network')}</label><div class="network-name"><input class="t" id="rnIn" maxlength="24" value="${esc(S.name)}" autocomplete="off"></div><div class="btns" style="margin-top:12px">${btn(tr('slots.rename'),'renameGo',{},'pink big')}${btn(tr('common.cancel'),'menu',{},'ghost big')}</div>`);},
+ renameGo:()=>{const el=$('rnIn');if(!S||!el)return;const v=el.value.replace(/\s+/g,' ').trim().slice(0,24);if(!v)return;S.name=v;closeModal();after();toast(tr('slots.renamed_to_name',{name:esc(v)}),'good');},
 });
 // No game on screen: the map stays empty behind the title.
 function gameClear(){S=null;R=emptyR();UI.started=false;UI.sel=null;UI.nm=null;UI.confirm=null;$('dash').hidden=true;$('bankBox').hidden=true;renderAll();}
-// Back from the title (or a puzzle) into a loaded network.
+// Back from the title into a loaded network.
 function gameResume(){UI.started=true;UI.sel=null;UI.confirm=null;$('dash').hidden=true;$('bankBox').hidden=true;UI.speed=[0,0.5,1,2,4,8].includes(S.uiSpeed)?S.uiSpeed:1;
   if(S.cam&&isFinite(S.cam.x))Object.assign(cam,S.cam);else{const h=CITY[S.home];if(h){cam.x=h.x;cam.y=h.y;cam.z=innerWidth<760?1.1:1.4;}}
   closeModal();renderAll();toast(tr('loop.welcome_back_name_your_network_is',{name:esc(S.name),date:dateStr(S.day)}),'good');}

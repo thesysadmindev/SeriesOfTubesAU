@@ -7,10 +7,11 @@ Object.assign(BIZ_T,{
  capsub:{l:tr('capacity_deals.subsea_capacity'),opts:[1600,3200,6400],rate:0,l2:true,cap:true,km:0.35,lv:CAP_LV,names:['Seven Seas Capacity Co.','Petabyte Pirates','Deep Blue Bandwidth','Cable Guy Consortium','Kraken Transit Holdings']},
  capfib:{l:tr('capacity_deals.fiber_pairs'),opts:[2,4,8],rate:0,fiber:true,cap:true,lv:CAP_LV,names:['Glass Half Full Fiber','Hyperscale Hydra','A Hyperscaler Who Shall Not Be Named','Strand Theft Auto','Pair-a-Dice Networks']},
 });
-// The routes each capacity conference talks about. PTC is a Pacific crowd; Capacity Europe is the Atlantic and Europe.
+// The routes each capacity conference talks about, all of them at home (no customer has an end overseas): PTC is an
+// east-coast crowd, Capacity Asia the west and the cables round the south coast.
 const CAP_ROUTES={
- hnl:[['syd','lax','capsub'],['tok','sea','capsub'],['hnl','lax','capsub'],['sin','hkg','capsub'],['syd','per','capw'],['dal','ash','capw'],['syd','akl','capfib'],['lax','sea','capfib']],
- lon:[['bde','nyc','capsub'],['lis','for','capsub'],['mrs','sin','capsub'],['lon','fra','capw'],['chi','ash','capw'],['fra','ams','capw'],['chi','ash','capfib'],['mad','mrs','capfib']],
+ lax:[['mel','hba','capsub'],['syd','mel','capw'],['syd','bne','capw'],['bne','tsv','capw'],['syd','mel','capfib'],['mel','adl','capfib']],
+ sin:[['per','syd','capsub'],['adl','per','capsub'],['drw','per','capw'],['per','get','capw'],['mel','adl','capw'],['adl','per','capw'],['drw','per','capfib'],['syd','mel','capfib']],
 };
 const SP_OFFERS=1.8,SP_REGION=0.6,CAP_PEN=2;
 const confSpOn=()=>!!(S.conf&&S.conf.sp&&S.conf.until>S.day);
@@ -29,7 +30,7 @@ function capOffer(a,b,t,nm){const T=BIZ_T[t],km=kmBetween(a,b),n=pick(T.opts),o=
 function capDealTick(d){const q=S.capDeal;if(!q||q.at!==d)return;S.capDeal=null;seatConf(q.c);const pool=(CAP_ROUTES[q.c]||[]).filter(r=>isCity(r[0])&&isCity(r[1])).slice(),out=[];
   while(out.length<3&&pool.length){const [a,b,t]=pool.splice(Math.floor(Math.random()*pool.length),1)[0],T=BIZ_T[t];
     const nm=()=>{const list=T.names.filter(n=>!S.usedNames.includes(n)),n=list.length?pick(list):pick(T.names);useName(n);return n;};out.push(capOffer(a,b,t,nm));}
-  if(!out.length)return;S.offers.push(...out);
+  if(!out.length)return;S.offers.push(...out.filter(custOk));
   toast(trn('capacity_deals.n_carriers_from_the_conference',out.length),'goal',[{l:tr('common.show_me'),act:'leftTab',args:{t:'deals'}}]);sfx('coin');}
 // A signed deal waits for its route. Fiber pairs need a fiber of your own between the two cities.
 function capFibLink(b){return S.links.find(l=>l.kind==='df'&&l.own&&l.ready<=S.day&&!(l.cut>S.day)&&((l.a===b.city&&l.b===b.city2)||(l.a===b.city2&&l.b===b.city))&&!S.biz.some(x=>x!==b&&(x.type==='pairs'||x.type==='capfib'||x.type==='dfpair')&&x.link===l.id));}

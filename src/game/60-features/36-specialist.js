@@ -2,7 +2,9 @@
    You do not have to grow everywhere to grow up. Customers call when your network can already serve them, not only
    when your level says so; gear one level ahead comes early as a vendor demo unit at a premium; a seat on a
    consortium cable is the way onto your own subsea glass before Tier 1; and a charter picks what you set out to be. */
-const FIN=['nyc','chi','lon','fra','tok','sin','hkg','ams','ash'];
+// Where the traders are: the ASX and its rival matching engine in Sydney, and the trading desks of Melbourne, Brisbane
+// and Perth. All Australian: no customer has an end overseas.
+const FIN=['syd','mel','bne','per'];
 // What a capability brings in, and why the offer says it came.
 const SPOT_W={lat:N_('specialist.spotted_your_ms_ms_a_b_path'),df:N_('specialist.spotted_your_cap_of_dark_fiber'),div:N_('specialist.spotted_your_two_diverse_paths_a'),eye:N_('specialist.spotted_your_broadband_in_a_one')};
 const SPOT_BIG=12,SPOT_DF=0.75;
@@ -11,7 +13,7 @@ let BIGEYE=null;const bigEye=()=>BIGEYE||(BIGEYE=CITIES.slice().sort((x,y)=>y.P-
 // Worked out at most once a day (and again when the network changes shape): offers spawn far less often than that.
 let SPOTC=null;
 function spots(){const lv=lvl(),k=S.day+'|'+lv+'|'+S.links.length+'|'+Object.keys(S.pops).length+'|'+charter();if(SPOTC&&SPOTC.s===S&&SPOTC.k===k)return SPOTC.v;const v=spots0(lv);SPOTC={s:S,k,v};return v;}
-function spots0(lv){const out=[];if(gatesOpen()||S.scn)return out;const up=t=>BIZ_T[t].lv>lv,mine=Object.keys(S.pops);
+function spots0(lv){const out=[];if(gatesOpen())return out;const up=t=>BIZ_T[t].lv>lv,mine=Object.keys(S.pops);
   if(up('hft')){const f=FIN.filter(c=>S.pops[c]);for(let i=0;i<f.length;i++)for(let j=i+1;j<f.length;j++){const a=f[i],b=f[j],ms=bestLat(a,b);if(ms<=latMaxOf(a,b))out.push({t:'hft',a,b,k:'lat',n:+ms.toFixed(1)});}}
   const dci=['onramp','ai','hyper'].filter(up);
   if(dci.length)for(const l of S.links){if(l.kind!=='df'||l.sub||l.ready>S.day||linkDown(l))continue;const g=dfCap(l);
@@ -19,7 +21,7 @@ function spots0(lv){const out=[];if(gatesOpen()||S.scn)return out;const up=t=>BI
   if(up('sov')){const by={};for(const c of mine)(by[CITY[c].cc]=by[CITY[c].cc]||[]).push(c);
     for(const cs of Object.values(by))for(let i=0;i<cs.length;i++)for(let j=i+1;j<cs.length;j++)if(diversePaths(cs[i],cs[j]))out.push({t:'sov',a:cs[i],b:cs[j],k:'div',n:0});}
   if(up('cgame')&&R)for(const c of bigEye())if(S.pops[c]&&S.pops[c].bb&&sfOf(R,c)>=0.95)out.push({t:'cgame',a:c,b:null,k:'eye',n:0});
-  return out;}
+  return out.filter(s=>custAt(s.a)&&(!s.b||custAt(s.b)));}
 // A spotted customer starts at the smallest size its type comes in; your level makes them bigger and more frequent.
 function spawnSpot(t,s){const T=BIZ_T[t],list=T.names.filter(n=>!S.usedNames.includes(n)),name=list.length?pick(list):pick(T.names);useName(name);
   const o={id:uid(),city:s.a,city2:s.b,name,type:t,bw:T.opts[0],reqs:[],exp:S.day+40,spot:{k:s.k,n:s.n}};
@@ -47,8 +49,8 @@ const digMul=()=>lvl()>=3?1:PIONEER,digCost=km=>Math.round(dfBuildCost(km)*digMu
 /* A seat on a consortium cable (#173): pay your share of the build, wait for the ship, and own fiber pairs on it,
    lit with your own optics like your own cable. Capacity conferences offer them, and now and then a consortium calls. */
 const SEAT_ROUTES={
- lon:[['nyc','bde','Amity Ville'],['lis','for','Ella Fitz-Link'],['mrs','sin','Sea, Me, We, Us, Them'],['lon','lag','Equi-Not']],
- hnl:[['syd','lax','Southern Double-Cross'],['tok','sea','Kuro-Show'],['sin','hkg','Dim Sum Express'],['syd','akl','Tasman Devil']],
+ lax:[['syd','lax','Southern Double-Cross'],['syd','akl','Tasman Devil'],['bne','tyo','Guam Slam'],['syd','sjc','Aloha Again']],
+ sin:[['per','sin','Indian Ocean Express-o'],['drw','sin','Top End Tunnel'],['sin','hkg','Satay Express'],['syd','sin','Indi-Go-Further']],
 };
 const SEAT_N=[1,2,4],SEAT_SHARE=10,SEAT_LV=2,SEAT_ODDS=240,SEAT_EXP=30;
 const seatKm=(a,b)=>Math.round(kmBetween(a,b)*1.2),seatCost=(km,n)=>Math.round(ownCabCost(km)*n/SEAT_SHARE),seatMo=(km,n)=>Math.round(ownCabMo(km)*n/SEAT_SHARE),seatDays=km=>Math.max(1,Math.round(ownCabDays(km)*0.6));
@@ -57,7 +59,7 @@ const seatRoute=name=>Object.values(SEAT_ROUTES).flat().find(r=>r[2]===name);
 // by the dice, so the rest of the game rolls exactly as before.
 function seatOffer(c,d){const rs=(c?SEAT_ROUTES[c]||[]:Object.values(SEAT_ROUTES).flat()).filter(r=>isCity(r[0])&&isCity(r[1])&&(c||S.pops[r[0]]||S.pops[r[1]])&&!S.links.some(l=>l.seat&&l.cname===r[2]));
   if(!rs.length)return null;const r=rs[hstr(S.asn+'|seat|'+d)%rs.length];return {a:r[0],b:r[1],name:r[2],km:seatKm(r[0],r[1]),exp:d+SEAT_EXP};}
-function seatConf(c){if(S.seatOff||lvl()<SEAT_LV||S.scn)return;S.seatOff=seatOffer(c,S.day);if(S.seatOff)toast(tr('specialist.a_consortium_is_selling_seats_on',{name:esc(S.seatOff.name),a:CITY[S.seatOff.a].name,b:CITY[S.seatOff.b].name}),'goal',[{l:tr('common.show_me'),act:'leftTab',args:{t:'deals'}}]);}
+function seatConf(c){if(S.seatOff||lvl()<SEAT_LV)return;S.seatOff=seatOffer(c,S.day);if(S.seatOff)toast(tr('specialist.a_consortium_is_selling_seats_on',{name:esc(S.seatOff.name),a:CITY[S.seatOff.a].name,b:CITY[S.seatOff.b].name}),'goal',[{l:tr('common.show_me'),act:'leftTab',args:{t:'deals'}}]);}
 function seatSection(){const o=S.seatOff;if(!o||o.exp<=S.day)return '';const pop=[o.a,o.b].filter(c=>!S.pops[c]).reduce((x,c)=>x+popCost(c),0);
   return `<div class="inc" style="background:#E6F4FF"><div class="nm">🚢 ${tr('specialist.consortium_seat_name',{name:esc(o.name)})}</div><div class="meta">${tr('specialist.a_b_km_km_ready_in',{a:CITY[o.a].name,b:CITY[o.b].name,km:o.km.toLocaleString(),n:seatDays(o.km),ms:linkLat({kind:'df',own:true,sub:true,km:o.km,seaDesign:'standard'}).toFixed(1)})} · ${tr('ui.n_d_left',{n:o.exp-S.day})}</div>
   <div class="meta">${tr('specialist.your_own_fiber_pairs_on_a')}${pop?' '+tr('specialist.includes_pops_at_the_landings_price',{price:fmt$(pop)}):''}</div>
@@ -68,7 +70,7 @@ function seatPanel(l){if(!l.seat)return '';return `<div class="kv"><span>${tr('s
    it always was; the Low-latency boutique sells speed to traders and has its own win, Speed of Light. */
 const CHARTERS={global:{i:'🌐',n:N_('specialist.global_backbone'),d:N_('specialist.the_classic_game_grow_everywhere_and')},boutique:{i:'⚡',n:N_('specialist.low_latency_boutique'),d:N_('specialist.trading_firms_and_other_latency_customers')}};
 const CHARTER_DAYS=30,LAT_PAY=1.4,SOL_ROUTES=3,SOL_CUST=2;
-const charter=()=>S&&!S.scn&&S.mode==='normal'&&S.charter==='boutique'?'boutique':'global';
+const charter=()=>S&&S.mode==='normal'&&S.charter==='boutique'?'boutique':'global';
 const latPay=()=>charter()==='boutique'?LAT_PAY:1;
 // The fastest a leased wave or fiber gets between two cities: overland, or the quickest cable on the route.
 function leasedLat(a,b){let best=isSub(a,b)?Infinity:kmBetween(a,b)*1.25/200;for(const c of cablesFor(a,b))best=Math.min(best,c.km*Math.min(CAB[c.cid].lat||1,1.25)/200);return best;}
@@ -78,15 +80,15 @@ function solRoutes(){const k=S.day+'|'+S.links.length+'|'+S.links.reduce((n,l)=>
   const f=FIN.filter(c=>S.pops[c]),v=[];if(S.links.some(ownGlass))for(let i=0;i<f.length;i++)for(let j=i+1;j<f.length;j++){const a=f[i],b=f[j],o=bestLat(a,b,ownGlass),l=leasedLat(a,b);if(isFinite(o)&&isFinite(l)&&o<l)v.push({a,b,o,l});}
   SOLC={s:S,k,v};return v;}
 const solCust=()=>S.biz.filter(b=>BIZ_T[b.type]&&BIZ_T[b.type].lat&&b.mood>=50&&reqOk(b)).length;
-function charterCard(){if(S.scn||S.mode!=='normal')return '';
+function charterCard(){if(S.mode!=='normal')return '';
   if(!S.chartSet&&S.day<=CHARTER_DAYS)return `<div class="inc" style="background:#EEF0FF"><div class="nm">${tr('specialist.pick_a_charter')}</div><div class="meta">${tr('specialist.what_kind_of_network_are_you',{n:CHARTER_DAYS-S.day})}</div>${Object.entries(CHARTERS).map(([k,C])=>`<div class="row"><div class="grow"><div class="nm">${C.i} ${tr(C.n)}</div><div class="meta">${tr(C.d,{p:Math.round((LAT_PAY-1)*100),r:SOL_ROUTES,c:SOL_CUST})}</div></div>${btn(charter()===k?tr('specialist.keep_it'):tr('specialist.pick'),'charter',{k},k==='global'?'ghost sm':'pink sm')}</div>`).join('')}</div>`;
   if(charter()!=='boutique')return '';
   if(S.solWon)return `<div class="inc" style="background:#EAF7EE"><div class="nm">⚡ ${tr('specialist.speed_of_light')}</div><div class="meta">${tr('specialist.won_on_date_your_own_glass',{date:dateStr(S.solWon)})}</div></div>`;
   const r=solRoutes();return `<div class="inc" style="background:#EEF0FF"><div class="nm">⚡ ${tr('specialist.speed_of_light')}</div><div class="meta">${tr('specialist.routes_r_of_n_beat_the',{r:Math.min(r.length,SOL_ROUTES),n:SOL_ROUTES,c:Math.min(solCust(),SOL_CUST),m:SOL_CUST})}</div>${r.slice(0,SOL_ROUTES).map(x=>`<div class="meta">✓ ${CITY[x.a].name} ⇄ ${CITY[x.b].name}: ${tr('common.ms_ms_one_way',{ms:x.o.toFixed(1)})} &lt; ${x.l.toFixed(1)}</div>`).join('')}</div>`;}
 // Once a day: seats expire or call, and the boutique checks its win.
 function specDay(d){if(S.seatOff&&S.seatOff.exp<=d)S.seatOff=null;
-  if(!S.seatOff&&!S.scn&&S.mode!=='puzzle'&&lvl()>=SEAT_LV&&hstr(S.asn+'|seatcall|'+d)%SEAT_ODDS===0)seatConf(null);
-  if(charter()==='boutique'&&!S.solWon&&solRoutes().length>=SOL_ROUTES&&solCust()>=SOL_CUST){S.solWon=Math.max(1,d);track('win_sol');toast(`<b>⚡ ${tr('specialist.speed_of_light')}</b><br>${tr('specialist.your_own_glass_beats_every_leased')}`,'goal');sfx('coin');checkBadges();}}
+  if(!S.seatOff&&lvl()>=SEAT_LV&&hstr(S.asn+'|seatcall|'+d)%SEAT_ODDS===0)seatConf(null);
+  if(charter()==='boutique'&&!S.solWon&&solRoutes().length>=SOL_ROUTES&&solCust()>=SOL_CUST){S.solWon=Math.max(1,d);toast(`<b>⚡ ${tr('specialist.speed_of_light')}</b><br>${tr('specialist.your_own_glass_beats_every_leased')}`,'goal');sfx('coin');checkBadges();}}
 // Saves: the charter, demo orders, a seat on offer and the boutique's win. Old saves are Global backbone, picked.
 function specSanitize(s){s.charter=s.charter==='boutique'&&s.mode==='normal'&&!s.scn?'boutique':'global';s.chartSet=s.chartSet===false&&s.day<=CHARTER_DAYS?false:true;
   const dm={};if(s.demo&&typeof s.demo==='object'&&!Array.isArray(s.demo))for(const key of Object.keys(s.demo).slice(0,64)){const [k,id]=key.split(':');if(demoItem(k,id)&&Number.isFinite(+s.demo[key]))dm[key]=Math.round(+s.demo[key]);}s.demo=dm;

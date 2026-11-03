@@ -29,7 +29,7 @@ test('what the player should see happen', () => {
 
 Pick the suite by topic: `game` (core loop), `build`, `persist` (save/import/migrate),
 `services` (customers), `peering`, `issues` (GitHub issue regressions, name them
-`#NN …`), `regions`, `modes` (scenarios, sandbox, weekly), `i18n`, `pages` (hosting).
+`#NN …`), `regions`, `modes` (sandbox, the title doors), `i18n`, `pages` (hosting).
 For a new feature, prefer a new file named after it (`tests/route-servers.test.js`): every
 `tests/*.test.js` runs on its own (`scripts/test.js`), and a file of your own never conflicts
 with someone else's tests. Appending to the big suites (`issues`, `regions`) is where

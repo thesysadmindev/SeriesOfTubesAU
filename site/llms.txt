@@ -1,31 +1,33 @@
-# Series of Tubes
+# Series of Tubes: Australia
 
-> Series of Tubes is a free cartoon browser game about building the internet.
-> Play it at https://seriesoftub.es/ — it runs entirely in the browser, needs no
-> account, and saves progress locally.
+> Series of Tubes: Australia is a free cartoon browser game about running an
+> Australian ISP and hosting provider. Play it at
+> https://seriesoftubes.au/ — it runs entirely in the
+> browser, needs no account, and saves progress locally.
 
-You start as a small network with one router in one city and grow into a
-transit-free Tier 1. The game models real internet engineering, with pun names
-for every company:
+You start with one data centre in an Australian capital and grow into a
+transit-free Tier 1. The game models how Australian networks really work, with
+pun names for every company:
 
-- **Access and customers:** home broadband ("eyeballs"), enterprise DIA, hosting,
-  game servers, L2VPNs, DDoS protection, high-frequency trading circuits with
-  latency budgets, AI GPU data centers and hyperscaler DCI deals.
+- **The Nearly Broadband Network:** all 121 points of interconnect (POIs), with
+  the premises each one serves. Reach a POI over a leased wave or your own dark
+  fibre, rent an NNI port there, and pay an AVC for every home you connect.
+- **Hosting:** lease a cage or build a data hall, and rent racks to colocation
+  and dedicated-server customers.
 - **Interconnection:** IP transit billed on the 95th percentile, internet
   exchanges with route servers, peering policies (open, selective, restrictive,
-  paid), private network interconnects (PNIs), embedded CDN caches and NNI
-  fabrics for virtual circuits and remote peering.
-- **Infrastructure:** leased waves, around 40 subsea cable systems modelled on real ones,
-  dark fiber (leased IRU or self-built) lit with DWDM line systems, amplifiers
-  and coherent ZR+ optics, router generations with port-speed limits.
-- **Traffic engineering:** per-link traffic breakdown by network, entry point and
-  destination; link metrics; egress preferences; latency-aware routing.
-- **Failures:** fiber cuts, router crashes, fat-fingered configs, route leaks,
-  RPKI and BGP hijacks, DDoS, cooling failures, Red Sea and Baltic cable cuts,
-  sovereign internet drills and other geopolitical events.
+  paid), private network interconnects (PNIs) with the Big Four and the global
+  Tier 1s, embedded CDN caches and NNI fabrics.
+- **Infrastructure:** leased waves across the Nullarbor and up the coasts, Bass
+  Strait and the subsea cables to Asia, New Zealand, the Pacific and the US,
+  dark fibre lit with DWDM and coherent optics, router generations with
+  port-speed limits.
+- **Failures:** fibre cuts, cyclones, sharks, router crashes, fat-fingered
+  configs, route leaks, RPKI and BGP hijacks and DDoS.
 
 Version: __VERSION__ (__BUILD_DATE__)
-Source: https://github.com/fjaeckel/seriesoftubes
+Source: https://github.com/thesysadmindev/SeriesOfTubesAU
+Based on Series of Tubes by Frederic Jung: https://github.com/fjaeckel/seriesoftubes
 
 ## Learn how the internet really works
 

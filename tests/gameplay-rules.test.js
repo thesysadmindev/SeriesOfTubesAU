@@ -9,74 +9,32 @@ const { load } = require('./harness');
 
 // Every exception names what breaks the rule and why. One per line, sorted within each rule.
 const EXCEPTIONS = {
-  // W2: countries with fewer than two consumer networks of their own, because real life has fewer.
-  W2: {
-    CU: 'Cuba has one state operator (ETECSA); Cubacel is its own mobile brand',
-    DJ: 'Djibouti Telecom is the monopoly for homes and phones',
-    MH: 'the Marshall Islands have one telco (NTA)',
-    PN: 'Pitcairn has no network at all: land your own cable (#124)',
-    SH: 'St Helena has one operator (Sure South Atlantic)',
-  },
-  // W3: cities nobody sells transit in.
-  W3: {
-    ivc: 'Invercargill waits for its AI campus; nobody sells transit there yet',
-    pcn: 'Pitcairn: no cable, no network, land your own (#124)',
-    prr: 'Prince Rupert is a remote town with no carrier in it',
-    stg: 'Stuttgart is the Only Spätzle-IX scenario city: peering only, by design (#114)',
-  },
-  // N3: networks in no founding Tier 1's customer cone. Old saves need PNIs with the founding five for Tier 1,
-  // so anyone outside their cones has to be peered with directly.
+  // W2: states and territories with fewer than two Australian retail networks of their own.
+  W2: {},
+  // W3: hubs, towns or gateways nobody sells transit in.
+  W3: {},
+  // N3: networks in no founding Tier 1's or big Australian carrier's customer cone: peer with them directly.
   N3: {
-    abb: 'Australians buy only from Australian carriers (#148)',
+    abb: 'Australian, peers for its own reach (#148)',
     atl: 'transit-free in India',
-    bcd: 'transit-free in Canada',
-    blg: 'Australian, buys from Telstraya (#148)',
-    btt: 'transit-free incumbent',
     cht: 'transit-free in Taiwan',
-    clr: 'America Movil, transit-free across Latin America',
-    cmb: 'China (#59): reached through the Chinese carriers',
-    cmc: 'transit-free incumbent',
-    cos: 'Greek incumbent, peers for its own reach',
-    ctc: 'China (#59)',
-    cun: 'China (#59)',
     cxc: 'buys from Spectre-um, which is transit-free',
     drz: 'a transit-free Tier 2',
-    dtk: 'transit-free incumbent',
-    etc: 'Cuba: buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     ets: 'transit-free in the Gulf',
     ftr: 'buys from Very-Zone, which is transit-free',
-    inp: 'Australian, buys from Toilet Paper Group (#148)',
-    jio: 'transit-free in India',
     kdi: 'transit-free in Japan',
-    ktt: 'Korea: sender pays, peer with it yourself',
-    lgu: 'Korea: sender pays',
-    lnt: 'Australian (#148)',
-    lpt: 'Australian (#148)',
-    meo: 'Portuguese incumbent, peers for its own reach',
-    mgf: 'Russia: buys from Rostelecomedy (#70)',
-    npt: 'Australian (#148)',
-    ert: 'Russia: buys from Rostelecomedy (#70)',
-    opt: 'Australian, buys from SingTell (#148)',
-    pnt: 'Australian (#148)',
-    rtc: 'Russia (#70)',
+    lnt: 'Australian, peers for its own reach (#148)',
+    lpt: 'Australian, peers for its own reach (#148)',
+    npt: 'Australian, peers for its own reach (#148)',
+    pnt: 'Australian, peers for its own reach (#148)',
     sgt: 'a transit-free Tier 2',
-    skb: 'Korea: sender pays',
     spc: 'transit-free incumbent',
+    spk: 'the New Zealand incumbent, transit-free at home',
     stb: 'satellite: peers for its own reach',
-    stc: 'transit-free in Saudi Arabia',
-    teg: 'owns the land crossing; transit-free',
-    tim: 'buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
-    tmt: 'buys from Sparkly Seabone, a Tier 1 only for games since 1.12',
     tmx: 'transit-free in Mexico',
     tmy: 'Malaysian incumbent, peers for its own reach',
-    tng: 'a transit-free Tier 2',
-    tpr: 'Australian (#148)',
     tsf: 'Indonesian incumbent, peers for its own reach',
-    tsy: 'Australian, transit-free (#148)',
-    ttk: 'transit-free in Turkey',
-    ups: 'European cable group, peers for its own reach',
-    vdp: 'a transit-free Tier 2',
-    viv: 'transit-free in Brazil',
+    vtl: 'Vietnamese carrier, transit-free at home',
     vzn: 'transit-free incumbent',
   },
   // N7: an exchange port where the network has no PoP.
@@ -113,28 +71,27 @@ const ex = (id, k) => Object.prototype.hasOwnProperty.call(EXCEPTIONS[id] || {},
 // ---------- World ----------
 
 test('W1: every city has a country code, a region and real coordinates', () => {
-  const bad = J(`CITIES.filter(c=>!/^[A-Z]{2}$/.test(c.cc||'')||!['AM','SA','EU','AS','OC','AF'].includes(c.reg)||!(Math.abs(c.lat)<=90&&Math.abs(c.lon)<=180&&CITY_LL[c.id])||!c.land).map(c=>c.id+' ('+c.name+')')`);
+  const bad = J(`CITIES.filter(c=>!/^[A-Z]{2}$/.test(c.cc||'')||!['nsw','vic','qld','wa','sa','tas','nt','act','int'].includes(c.reg)||!(Math.abs(c.lat)<=90&&Math.abs(c.lon)<=180&&(CITY_LL[c.id]||c.poi))||!c.land).map(c=>c.id+' ('+c.name+')')`);
   fail('W1', bad, 'give it cc (ISO 3166-1 alpha-2; territories have their own), reg, land and an entry in CITY_LL');
 });
 
-test('W2: every country on the map has at least two consumer networks of its own', () => {
-  // "Own": the network names the country in its home markets (cc) and has a PoP there. Consumer networks are the
-  // eyeballs, and the Tier 2 incumbents that sell to homes and phones in their home markets.
-  const rows = J(`(()=>{const cs={};for(const c of CITIES)if(!c.off)(cs[c.cc]=cs[c.cc]||[]).push(c.id);
-    return Object.keys(cs).sort().map(cc=>[cc,NETS.filter(n=>(n.type==='eye'||n.type==='t2')&&[].concat(n.cc||[]).includes(cc)&&n.pops.some(p=>CITY[p].cc===cc)).map(n=>n.name)]);})()`);
-  const bad = rows.filter(([cc, own]) => own.length < 2 && !ex('W2', cc))
-    .map(([cc, own]) => `${country(cc)} (${cc}) has ${own.length} own eyeball network${own.length === 1 ? '' : 's'}${own.length ? ': ' + own.join(', ') : ''}`);
-  fail('W2', bad, 'add a real operator of that country (src/game/30-networks/32-homegrown-eyeballs.js) or list it in EXCEPTIONS with a reason');
-  const stale = Object.keys(EXCEPTIONS.W2).filter((cc) => (rows.find((r) => r[0] === cc) || [cc, [1, 2]])[1].length >= 2);
-  assert.deepEqual(stale, [], 'W2: these exceptions are no longer needed; remove them');
+test('W2: every state and territory has at least two retail networks with a PoP there', () => {
+  // Retail: the eyeball networks, and the Tier 2s that sell to homes (Telstraya, Hocus Pocus…), all Australian (cc AU).
+  const rows = J(`Object.keys(REG).filter(r=>r!=='int').map(r=>[r,NETS.filter(n=>(n.type==='eye'||n.type==='t2')&&[].concat(n.cc||[]).includes('AU')&&n.pops.some(p=>CITY[p].reg===r)).map(n=>n.name)])`);
+  const bad = rows.filter(([r, own]) => own.length < 2 && !ex('W2', r)).map(([r, own]) => `${r} has ${own.length}${own.length ? ': ' + own.join(', ') : ''}`);
+  fail('W2', bad, 'give an Australian retail network a PoP in that state, or list it in EXCEPTIONS with a reason');
+  fail('W2', Object.keys(EXCEPTIONS.W2).filter((r) => (rows.find((x) => x[0] === r) || [r, [1, 2]])[1].length >= 2), 'these exceptions are no longer needed; remove them');
   // a network's home markets are places it really is
   const homeless = J(`NETS.filter(n=>n.cc).flatMap(n=>[].concat(n.cc).filter(cc=>!n.pops.some(p=>CITY[p].cc===cc)).map(cc=>n.name+' has no PoP in '+cc))`);
   fail('W2', homeless, 'a home market (cc) needs a PoP in that country');
 });
 
-test('W3: every city can buy transit from someone, or is a documented exception', () => {
-  const bad = J(`CITIES.filter(c=>!c.off&&!NETS.some(n=>sellsAt(n,c.id))).map(c=>c.id)`).filter((c) => !ex('W3', c));
-  fail('W3', bad, 'give a carrier a PoP there (with a price) or list the city in EXCEPTIONS with a reason');
+test('W3: transit is sold at every Australian data centre, by at least two carriers, and nowhere else', () => {
+  // A network starts in a data centre and buys transit there; POIs, route towns and the overseas PoPs sell none.
+  const thin = J(`CITIES.filter(c=>!c.off&&isDc(c.id)&&NETS.filter(n=>sellsAt(n,c.id)).length<2).map(c=>c.id)`).filter((c) => !ex('W3', c));
+  fail('W3', thin, 'give a second Australian carrier a PoP there, or list the city in EXCEPTIONS with a reason');
+  const elsewhere = J(`CITIES.filter(c=>!isDc(c.id)&&NETS.some(n=>sellsAt(n,c.id))).map(c=>c.id)`);
+  fail('W3', elsewhere, 'transit is only sold in Australian data centres');
 });
 
 test('W4: cables are consistent: real cities, two distinct ends, a length and unique ids', () => {
@@ -148,6 +105,14 @@ test('W4: cables are consistent: real cities, two distinct ends, a length and un
 test('W5: every island city can be reached: it shares its land, has a cable, or a beach to land one', () => {
   const bad = J(`CITIES.filter(c=>!c.off&&!CITIES.some(o=>o!==c&&!o.off&&(o.land===c.land||o.land2===c.land||c.land2===o.land))&&!landing(c.id)).map(c=>c.id)`);
   fail('W5', bad, 'land a cable there or give it beach:true');
+});
+
+test('W6: all 121 NBN points of interconnect, each a city with its premises, in every state and territory', () => {
+  assert.equal(J('POIS.length'), 121, 'the ACCC list has 121 POIs: rebuild with scripts/build-au-map.js');
+  const ids = J('POIS.map(p=>p.id)');
+  fail('W6', ids.filter((x, i) => ids.indexOf(x) !== i), 'POI ids must be unique');
+  fail('W6', J("POIS.filter(p=>!CITY[p.id]||!CITY[p.id].poi||!(p.prem>0)||CITY[p.id].reg!==p.reg).map(p=>p.id)"), 'every POI is a city with its premises and state');
+  fail('W6', J("Object.keys(REG).filter(r=>r!=='int'&&!POIS.some(p=>p.reg===r))"), 'every state and territory has a POI');
 });
 
 // ---------- Networks ----------
@@ -168,9 +133,10 @@ test('N2: names are puns: no network, cable, exchange, data center, router or op
   fail('N2', names.filter(([, n]) => /-ish\b/i.test(n)).map(([k, n]) => `${k} “${n}”`), 'no lazy -ish names: find a real pun, or keep the plain word');
 });
 
-test('N3: every network sits in a founding Tier 1’s customer cone, or is a documented island', () => {
-  // The founding five (t1Need() of the oldest saves): every save can reach a network in their cones by peering with them.
-  const out = J(`NETS.filter(n=>n.type!=='t1'&&n.type!=='cdn'&&!['lvl','ntt','tly','cog','tat'].some(t=>CONE_S[t].has(n.id))).map(n=>n.id)`);
+test('N3: every network sits in a founding Tier 1’s or a big Australian carrier’s customer cone, or is a documented island', () => {
+  // The founding five Tier 1s and the big four Australians (Telstraya, Floptus, Toilet Paper Group, Hocus Pocus):
+  // peering with them reaches everyone in their cones.
+  const out = J(`NETS.filter(n=>n.type!=='t1'&&n.type!=='cdn'&&!['lvl','ntt','tly','cog','tat','tsy','opt','tpr','voc'].some(t=>CONE_S[t].has(n.id))).map(n=>n.id)`);
   fail('N3', out.filter((id) => !ex('N3', id)).map((id) => `${id} (${ev(`NET.${id}.name`)})`), 'give it a realistic upstream (up) in a founding Tier 1’s cone, or list it in EXCEPTIONS with a reason');
   fail('N3', Object.keys(EXCEPTIONS.N3).filter((id) => !out.includes(id)), 'these exceptions are no longer needed; remove them');
   fail('N3', J("NETS.filter(n=>(n.up||[]).some(u=>!NET[u]||NET[u].type==='cdn'||u===n.id)).map(n=>n.id)"), 'an upstream is another network that exists and sells transit, never content');
@@ -183,7 +149,7 @@ test('N4: no upstream cycles', () => {
 
 test('N5: traffic shares are sane', () => {
   fail('N5', J("NETS.filter(n=>!(n.share>0&&n.share<0.2)).map(n=>n.id)"), 'every share is positive and below 20%');
-  for (const t of ['NSH', 'NSH_CN', 'NSH_RU', 'NSH_KRX']) {
+  for (const t of ['NSH']) {
     assert.ok(Math.abs(ev(`Object.values(${t}).reduce((a,b)=>a+b,0)`) - 1) < 1e-9, `N5: ${t} sums to 1`);
     fail('N5', J(`Object.entries(${t}).filter(([k,v])=>!NET[k]||!(v>=0)).map(([k])=>k)`), `${t} only holds real networks, never negative`);
   }
@@ -221,7 +187,7 @@ test('M2: presets are ordered: Change Freeze never harsher than On-call, BGP at 
   const n = {};
   for (const p of ['freeze', 'oncall', 'bgp']) {
     const g = load();
-    g.ev(`beginGame('Order','fra',${JSON.stringify({ mode: 'normal', preset: p })});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});__reseed(4242);for(let i=0;i<360;i++)dayTick()`);
+    g.ev(`beginGame('Order','syd',${JSON.stringify({ mode: 'normal', preset: p })});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});__reseed(4242);for(let i=0;i<360;i++)dayTick()`);
     n[p] = g.ev('S.inc.length+S.stats.survived+(S.stats.incidents||0)');
     assert.deepEqual(g.errors, []);
   }
@@ -232,34 +198,21 @@ test('M3: every subsystem that can annoy the player reads a rule', () => {
   // [function, what it must read]
   const reads = [['dayTick', 'chaosMul()'], ['fireEvent', "rule('market')"], ['ddosTick', 'ddosOff()'],
     ['soldOut', "rule('market')"], ['hwMul', "rule('market')"], ['leadDays', "rule('lead')"], ['pniLead', 'leadDays'],
-    ['dfBuildDays', 'leadDays'], ['dayTick', "rule('clock')"], ['snub', "rule('market')"]];
+    ['dfBuildDays', 'leadDays'], ['snub', "rule('market')"]];
   fail('M3', reads.filter(([f, r]) => !ev(`typeof ${f}==='function'&&${f}.toString().includes(${JSON.stringify(r)})`)).map(([f, r]) => `${f}() does not read ${r}`), 'gate it on the ruleset (src/game/40-progress/30-rules.js)');
   // and in play: no chaos and no market means a quiet year
   const g = load();
-  g.ev("beginGame('Quiet','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.rules=makeRules('oncall',{chaos:'none',market:false});S.cash=1e9;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyIx({city:'fra',tier:1,signed:true});for(let i=0;i<360;i++)dayTick()");
+  g.ev("beginGame('Quiet','syd',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.rules=makeRules('oncall',{chaos:'none',market:false});S.cash=1e9;ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyIx({city:'syd',tier:1});for(let i=0;i<360;i++)dayTick()");
   assert.equal(g.ev('S.inc.length+(S.stats.incidents||0)'), 0, 'M3: nothing breaks without chaos');
   assert.equal(g.ev("hwMul('rt')"), 1, 'M3: no hardware inflation without the market');
-  assert.equal(g.ev("CITIES.slice(0,40).some(c=>soldOut('fra',c.id,1))"), false, 'M3: no sold-out routes without the market');
+  assert.equal(g.ev("CITIES.slice(0,40).some(c=>soldOut('syd',c.id,1))"), false, 'M3: no sold-out routes without the market');
   assert.deepEqual(g.errors, []);
   assert.ok(Object.keys(EXCEPTIONS.M3).every((f) => ev(`typeof ${f}==='function'`)), 'M3: exceptions name real functions');
 });
 
-test('M4: scenarios and the weekly challenge always run On-call', () => {
-  const g = load();
-  const bad = [];
-  for (const id of g.ev('JSON.stringify(SCN.map(x=>x.id))') && JSON.parse(g.ev('JSON.stringify(SCN.map(x=>x.id))'))) {
-    g.ev(`beginGame('S','${id}'==='weekly'?'fra':SCN.find(x=>x.id==='${id}').city,{mode:'normal',preset:'bgp',rules:{chaos:'spicy'},scn:SCN.find(x=>x.id==='${id}')});if(UI.pendGame)ACT.pitchSkip()`);
-    if (g.ev('S.rules.preset') !== 'oncall' || g.ev("rule('chaos')") !== 'normal') bad.push(id);
-  }
-  g.ev("ACT.startWeekly({sure:1});if(UI.pendGame)ACT.pitchSkip()");
-  if (g.ev('S.scn&&S.scn.id') !== 'weekly' || g.ev('S.rules.preset') !== 'oncall') bad.push('weekly');
-  fail('M4', bad, 'beginGame() must give scenarios On-call plus their own S.scn.rules');
-  assert.deepEqual(g.errors, []);
-});
-
 test('M5: Sandbox has no locked feature', () => {
   const g = load();
-  g.ev("beginGame('Box','fra',{mode:'sandbox'});if(UI.pendGame)ACT.pitchSkip()");
+  g.ev("beginGame('Box','syd',{mode:'sandbox'});if(UI.pendGame)ACT.pitchSkip()");
   assert.equal(g.ev('gatesOpen()'), true, 'M5: gates open');
   assert.equal(g.ev('lvl()'), g.ev('LEVELS.length'), 'M5: every level unlocked');
   assert.equal(g.ev('cabOpen()'), true, 'M5: own subsea cables');
@@ -268,38 +221,6 @@ test('M5: Sandbox has no locked feature', () => {
 });
 
 // ---------- Content ----------
-
-test('C1: every scenario has a goal its card checks, and none is won on day 0', () => {
-  const g = load();
-  const ids = JSON.parse(g.ev('JSON.stringify(SCN.map(x=>x.id))'));
-  assert.equal(new Set(ids).size, ids.length, 'C1: scenario ids are unique');
-  const bad = [];
-  for (const id of ids) {
-    g.ev(`ACT.startScn({id:'${id}',sure:1});if(UI.pendGame)ACT.pitchSkip()`);
-    const def = `SCN.find(x=>x.id==='${id}')`;
-    if (!g.ev(`!!(${def}.n&&${def}.d&&${def}.goal&&typeof ${def}.ok==='function'&&${def}.days>0&&CITY[${def}.city])`)) bad.push(id + ': incomplete definition');
-    if (g.ev(`(()=>{try{return !!${def}.ok();}catch(e){return false;}})()`)) bad.push(id + ': won on day 0');
-    if (!g.ev(`typeof SCN_PROG['${id}']==='function'&&scnProg().items.length>0`)) bad.push(id + ': no progress card (SCN_PROG)');
-  }
-  // The published weekly scenarios too: each committed week starts, has its goal type's card, and needs play.
-  const wdir = path.join(__dirname, '..', 'site', 'scenarios', 'weekly');
-  for (const f of fs.readdirSync(wdir).filter((x) => /^\d{4}-W\d{2}\.json$/.test(x))) {
-    const j = fs.readFileSync(path.join(wdir, f), 'utf8'), id = 'weekly ' + f.slice(0, -5);
-    if (!g.ev(`wsBegin(${j},'S')`)) { bad.push(id + ': the game rejects it'); continue; }
-    g.ev('if(UI.pendGame)ACT.pitchSkip();closeModal();compute()');
-    if (g.ev('wsOk()')) bad.push(id + ': won on day 0');
-    if (!g.ev('scnProg().items.length>0&&!!scnName()&&!!wsGoalTxt(S.scn.wk)')) bad.push(id + ': no progress card or goal');
-    if (g.ev('S.rules.preset') !== 'oncall') bad.push(id + ': not On-call (M4)');
-  }
-  fail('C1', bad, 'give it n, d, goal, ok(), days, a city and a SCN_PROG entry; its goal must need play');
-  assert.deepEqual(g.errors, []);
-});
-
-test('C2: every puzzle has a 1-star and a 3-star reference solution (tests/puzzles.test.js)', () => {
-  const src = fs.readFileSync(path.join(__dirname, 'puzzles.test.js'), 'utf8');
-  const refs = [...src.matchAll(/^\s{2}([a-z0-9]+): \{ one: .*three: /gm)].map((m) => m[1]);
-  fail('C2', J('PZ.map(p=>p.id)').filter((id) => !refs.includes(id)), 'add its reference solutions to REF in tests/puzzles.test.js (that suite builds and scores them)');
-});
 
 test('C3: every player-facing string is translated in every language', () => {
   const out = execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'i18n-check.js')], { encoding: 'utf8' });
@@ -313,15 +234,15 @@ test('C3: every player-facing string is translated in every language', () => {
 
 test('F1: new players get a gentle start: nothing breaks for 45 days, no sold-out routes for 90, no hardware inflation for 180', () => {
   const g = load();
-  g.ev("beginGame('New','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip()");
+  g.ev("beginGame('New','syd',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip()");
   assert.ok(g.ev('S.nextFail') >= 45 && g.ev('S.nextEvent') >= 40, 'F1: first outage after day 45, first event after day 40');
   // the first events are only good news or harmless (a viral hit, a price change, a grant)
   const opts = JSON.parse(g.ev(`(()=>{let o=null;const f=eval('('+fireEvent.toString().replace('const e=pick(opts);','o=opts.slice();return;')+')');S.day=45;f();return JSON.stringify(o);})()`));
   fail('F1', opts.filter((e) => !['viral', 'price', 'grant'].includes(e)), 'no bad events before day 50');
-  assert.equal(g.ev("(()=>{for(let d=0;d<90;d++){S.day=d;if(CITIES.some(c=>soldOut('fra',c.id,1)))return true;}return false;})()"), false, 'F1: nothing sold out in the first 90 days');
+  assert.equal(g.ev("(()=>{for(let d=0;d<90;d++){S.day=d;if(CITIES.some(c=>soldOut('syd',c.id,1)))return true;}return false;})()"), false, 'F1: nothing sold out in the first 90 days');
   assert.equal(g.ev("(()=>{S.day=180;return hwMul('rt');})()"), 1, 'F1: hardware prices hold for 180 days');
   // customers get 15 days before a bad day costs them mood
-  g.ev("S.day=10;S.biz=[{id:'b1',city:'fra',city2:null,reqs:[],name:'X',type:'host',bw:5,rate:100,mood:80,since:5}];compute();dayTick()");
+  g.ev("S.day=10;S.biz=[{id:'b1',city:'syd',city2:null,reqs:[],name:'X',type:'host',bw:5,rate:100,mood:80,since:5}];compute();dayTick()");
   assert.ok(g.ev("(S.biz[0]||{mood:0}).mood") >= 80, 'F1: no mood loss in a customer’s first 15 days');
   assert.deepEqual(g.errors, []);
 });
@@ -329,11 +250,11 @@ test('F1: new players get a gentle start: nothing breaks for 45 days, no sold-ou
 test('F2: a simple build in a start city makes money within three months on On-call', () => {
   // Reference build: launch broadband, the cheapest 100G transit in town, and a port with a route server where there is an exchange.
   const bad = [];
-  for (const city of ['fra', 'nyc', 'sin', 'jnb']) {
+  for (const city of ['syd', 'mel', 'per', 'bne']) {
     const g = load();
     g.ev(`beginGame('Ref','${city}',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip()`);
     g.ev(`(()=>{const c='${city}',n=NETS.filter(n=>sellsAt(n,c)).sort((a,b)=>a.price*netMult(a,c)-b.price*netMult(b,c))[0];
-      ACT.launchBB({city:c});ACT.buyTransit({city:c,net:n.id,tier:1});if(ixName(c)){ACT.buyIx({city:c,tier:1,signed:true});ACT.rs({city:c});}})()`);
+      ACT.launchBB({city:c});ACT.buyTransit({city:c,net:n.id,tier:1});if(ixName(c)){ACT.buyIx({city:c,tier:1});ACT.rs({city:c});}})()`);
     let month = 0;
     for (let m = 1; m <= 3 && !month; m++) { g.ev('for(let i=0;i<30;i++)dayTick()'); if (g.ev('R.revMo-R.costMo') > 0) month = m; }
     if (!month || g.ev('S.lost')) bad.push(`${city}: still losing money after 3 months (${Math.round(g.ev('R.revMo-R.costMo'))}/mo)`);
@@ -344,8 +265,8 @@ test('F2: a simple build in a start city makes money within three months on On-c
 
 test('F3: a specialist path only brings customers you can already serve', () => {
   const g = load();
-  g.ev("ACT.start({});S.cash=1e9;S.lvl=1;for(const c of ['nyc','chi','ash'])S.pops[c]=S.pops[c]||{day:0,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0}");
-  g.ev("S.links.push({id:'w',a:'nyc',b:'chi',kind:'wave',tier:2,km:kmBetween('nyc','chi'),cut:0,mo:0},{id:'d',a:'chi',b:'ash',kind:'df',own:true,sys:'roadm',ch:['zr4','zr4','zr4','zr4'],km:kmBetween('chi','ash'),sub:false,cable:null,mo:0,trench:'d',cut:0,day:0,ready:0,spares:false},{id:'e',a:'nyc',b:'ash',kind:'df',own:true,sys:'roadm',ch:['zr4'],km:kmBetween('nyc','ash'),sub:false,cable:null,mo:0,trench:'e',cut:0,day:0,ready:0,spares:false});compute()");
+  g.ev("ACT.start({});S.cash=1e9;S.lvl=1;for(const c of ['bne','sin','drw'])S.pops[c]=S.pops[c]||{day:0,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0}");
+  g.ev("S.links.push({id:'w',a:'bne',b:'sin',kind:'wave',tier:2,km:kmBetween('bne','sin'),cut:0,mo:0},{id:'d',a:'sin',b:'drw',kind:'df',own:true,sys:'roadm',ch:['zr4','zr4','zr4','zr4'],km:kmBetween('sin','drw'),sub:false,cable:null,mo:0,trench:'d',cut:0,day:0,ready:0,spares:false},{id:'e',a:'bne',b:'drw',kind:'df',own:true,sys:'roadm',ch:['zr4'],km:kmBetween('bne','drw'),sub:false,cable:null,mo:0,trench:'e',cut:0,day:0,ready:0,spares:false});compute()");
   const Jg = (x) => JSON.parse(g.ev(`JSON.stringify(${x})`));
   const sp = Jg('spots()');
   assert.ok(sp.length > 0, 'F3: the reference network is spotted');
@@ -364,8 +285,8 @@ test('F3: a specialist path only brings customers you can already serve', () => 
 test('F4: the chaos monkey only visits On-call and BGP at 3 a.m., late, for 120 to 240 days, instead of the ordinary failures', () => {
   for (const preset of ['freeze', 'oncall', 'bgp']) {
     const g = load();
-    g.ev(`beginGame('Monkey','fra',{mode:'normal',preset:'${preset}'});if(UI.pendGame)ACT.pitchSkip()`);
-    g.ev("S.cash=1e9;S.lvl=4;for(const c of ['ams','lon','par'])ACT.buildPop({city:c});for(const [a,b] of [['fra','ams'],['ams','lon'],['lon','par'],['par','fra']]){UI.pending={a,b};ACT.buildLink({tier:1});}closeModal()");
+    g.ev(`beginGame('Monkey','syd',{mode:'normal',preset:'${preset}'});if(UI.pendGame)ACT.pitchSkip()`);
+    g.ev("S.cash=1e9;S.lvl=4;for(const c of ['mel','hba','adl'])ACT.buildPop({city:c});for(const [a,b] of [['syd','mel'],['mel','hba'],['hba','adl'],['adl','syd']]){UI.pending={a,b};ACT.buildLink({tier:1});}closeModal()");
     g.ev('for(let i=0;i<2;i++)dayTick()');
     if (preset === 'freeze') { assert.equal(g.ev('mkElig()'), false, 'F4: never in Change Freeze'); continue; }
     assert.ok(g.ev('S.monkey.next') >= 180, 'F4: not before day 180');
@@ -378,29 +299,29 @@ test('F4: the chaos monkey only visits On-call and BGP at 3 a.m., late, for 120 
     assert.deepEqual(g.errors, []);
   }
   const g = load();
-  g.ev("beginGame('Monkey','fra',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.mode='sandbox'");
+  g.ev("beginGame('Monkey','syd',{mode:'normal',preset:'oncall'});if(UI.pendGame)ACT.pitchSkip();S.mode='sandbox'");
   assert.equal(g.ev('mkElig()'), false, 'F4: never in Sandbox');
 });
 
 test('F5: rented capacity never outgrows the route\'s market (#203)', () => {
   const g = load();
-  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.biz=[];S.offers=[];for(const c of ['jed','gdx'])ACT.buildPop({city:c})");
-  g.ev("S.links.push({id:'f',a:'jed',b:'gdx',kind:'df',own:true,sys:'roadm',ch:[],km:9089,ready:0,day:0,cut:0,mo:1,trench:'own:f',pairs:1});compute();__reseed(5);ACT.listFiber({id:'f',w:120,p:1})");
+  g.ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.biz=[];S.offers=[];for(const c of ['phe','asp'])ACT.buildPop({city:c})");
+  g.ev("S.links.push({id:'f',a:'phe',b:'asp',kind:'df',own:true,sys:'roadm',ch:[],km:1600,ready:0,day:0,cut:0,mo:1,trench:'own:f',pairs:1});compute();__reseed(5);ACT.listFiber({id:'f',w:120,p:1})");
   g.ev('for(let d=0;d<1500;d++){brTick();if(d%7===0)spawnOffer();}for(const o of S.offers.filter(o=>o.link===\'f\'))ACT.accept({id:o.id})');
-  assert.ok(g.ev("brSold('jed','gdx')") <= g.ev("brMarket('jed','gdx')"), 'F5: no more than the route wants');
+  assert.ok(g.ev("brSold('phe','asp')") <= g.ev("brMarket('phe','asp')"), 'F5: no more than the route wants');
   assert.deepEqual(g.errors, []);
 });
 
 // D1–D4: DDoS as networks see it (#242). tests/ddos-model.test.js plays each one in detail.
-const ddFra = (ev) => ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=40;ACT.buyTransit({city:'fra',net:'cog',tier:1});S.pops.fra.rgen=RG.findIndex(r=>r.fsN===8);S.biz.push({id:'g',type:'game',name:'G',city:'fra',bw:10,rate:1,mood:80,since:0,reqs:[]},{id:'d',type:'dia',name:'D',city:'fra',bw:5,rate:1,mood:80,since:0,reqs:[]});compute()");
-const ddHit = (ev, g) => ev(`S.ev.ddos={id:'x',city:'fra',tgt:'g',vec:'dns',gbps:${g},start:S.day,until:S.day+2,bh:false};compute()`);
+const ddFra = (ev) => ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'syd'});S.pops.syd.bb.d=40;ACT.buyTransit({city:'syd',net:'cog',tier:1});S.pops.syd.rgen=RG.findIndex(r=>r.fsN===8);S.biz.push({id:'g',type:'game',name:'G',city:'syd',bw:10,rate:1,mood:80,since:0,reqs:[]},{id:'d',type:'dia',name:'D',city:'syd',bw:5,rate:1,mood:80,since:0,reqs:[]});compute()");
+const ddHit = (ev, g) => ev(`S.ev.ddos={id:'x',city:'syd',tgt:'g',vec:'dns',gbps:${g},start:S.day,until:S.day+2,bh:false};compute()`);
 test('D1: attack sizes come from the world, never from your network', () => {
   const g = load();
   ddFra(g.ev);
   g.ev('S.day=400');
   const draw = () => g.ev("__reseed(8);JSON.stringify(Array.from({length:500},()=>ddosSize({tgt:'d'})))");
   const a = draw();
-  g.ev('S.pops.fra.bb.d*=10;compute()');
+  g.ev('S.pops.syd.bb.d*=10;compute()');
   assert.equal(draw(), a, 'D1: ten times the subscribers, the same attacks');
   assert.ok(Math.max(...JSON.parse(a)) <= g.ev('DD_REC'), 'D1: never past the record');
   g.ev('S.day=10');
@@ -420,10 +341,10 @@ test('D3: only upstream tools and scrubbing keep a flood off your ports; Flowspe
   ddFra(g.ev);
   ddHit(g.ev, 200);
   assert.ok(g.ev('R.ddos[0].fs') > 0 && g.ev('R.ddos[0].full') === 1, 'D3: Flowspec drops what got in, the port stays full');
-  assert.deepEqual(JSON.parse(g.ev('JSON.stringify(R.fsUse.fra)')), { used: 1, cap: 8 }, 'D3: one rule of the router\'s own eight');
+  assert.deepEqual(JSON.parse(g.ev('JSON.stringify(R.fsUse.syd)')), { used: 1, cap: 8 }, 'D3: one rule of the router\'s own eight');
   g.ev("S.transit[0].clean=true;compute()");
   assert.equal(g.ev('R.ddos[0].full'), 0, 'D3: a clean pipe scrubs upstream');
-  g.ev("S.transit[0].clean=false;S.scrubs=[{city:'fra',tier:1}];S.scrubMode='always';compute()");
+  g.ev("S.transit[0].clean=false;S.scrubs=[{city:'syd',tier:1}];S.scrubMode='always';compute()");
   assert.equal(g.ev('R.ddos[0].full'), 0, 'D3: an engaged center pulls it off the ports');
   assert.deepEqual(g.errors, []);
 });

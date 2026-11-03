@@ -17,10 +17,10 @@ const slotOkId=id=>typeof id==='string'&&/^[a-z0-9]{1,24}$/.test(id);
 const slotRaw=id=>slotOkId(id)?lsGet(SLOT_K+id)??(id===SLOT_MAIN?lsGet(SLOT_OLD):null):null;
 // ---------- the index: read like a save, never trusted ----------
 function slotClean(e){if(!e||typeof e!=='object'||!slotOkId(e.id))return null;
-  return {id:e.id,name:String(e.name==null?'':e.name).slice(0,24),asn:int(e.asn,0,4294967294,0),mode:['normal','sandbox','scenario'].includes(e.mode)?e.mode:'normal',
-    preset:typeof e.preset==='string'&&own(PRESETS,e.preset)?e.preset:'oncall',scn:typeof e.scn==='string'?e.scn.slice(0,60):null,day:int(e.day,0,1e7,0),
-    tier:['Tier 1','Tier 2','Tier 3'].includes(e.tier)?e.tier:null,cash:num(e.cash,0),at:num(e.at,0),size:int(e.size,0,1e10,0),seq:int(e.seq,0,1e15,0),gz:!!e.gz,broken:!!e.broken};}
-const slotMeta=(s,tier)=>({name:s.name,asn:s.asn,mode:s.mode,preset:s.rules&&s.rules.preset,scn:s.scn&&s.scn.name||null,day:s.day,cash:s.cash,tier});
+  return {id:e.id,name:String(e.name==null?'':e.name).slice(0,24),asn:int(e.asn,0,4294967294,0),mode:e.mode==='sandbox'?'sandbox':'normal',
+    preset:typeof e.preset==='string'&&own(PRESETS,e.preset)?e.preset:'oncall',day:int(e.day,0,1e7,0),
+    tier:['Tier 1','Tier 2','Tier 3'].includes(e.tier)?e.tier:null,cash:num(e.cash,0),at:num(e.at,0),size:int(e.size,0,1e10,0),seq:int(e.seq,0,1e15,0),gz:!!e.gz,broken:!!e.broken,retired:!!e.retired};}
+const slotMeta=(s,tier)=>({name:s.name,asn:s.asn,mode:s.mode,preset:s.rules&&s.rules.preset,day:s.day,cash:s.cash,tier,retired:worldSave(s)});
 function slotKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k===SLOT_OLD)out.old=true;else if(k&&k.startsWith(SLOT_K)&&slotOkId(k.slice(SLOT_K.length)))out.push(k.slice(SLOT_K.length));}}catch(e){}return out;}
 // An index entry rebuilt from the save itself. A compressed one can only be read in the background: slotFix() fills it in.
 function slotFromKey(id){const raw=slotRaw(id)||'';if(raw.startsWith(GZ))return slotClean({id,gz:true,size:raw.length});
@@ -93,17 +93,20 @@ function slotIn(id,sv){const e=slotIdx().find(x=>x.id===id);UI.slot=id;ssSet(SLO
   SLOT.sq[id]=Math.max(sv&&isFinite(sv.seq)?+sv.seq:0,e?e.seq:0);}
 function slotNew(){const id=slotRid();UI.slot=id;ssSet(SLOT_SS,id);SLOT.sq[id]=0;SLOT.no.delete(id);slotClaim(id,true,()=>{});return id;}
 // Leave this window's network (saved first); the slot is free for other windows once its last save has landed.
-function slotLeave(){const id=UI.slot;if(!id)return;save(true);UI.slot=null;UI.pzKeep=null;ssSet(SLOT_SS,null);whenIdle(()=>slotFree(id));}
+function slotLeave(){const id=UI.slot;if(!id)return;save(true);UI.slot=null;ssSet(SLOT_SS,null);whenIdle(()=>slotFree(id));}
 // Read a slot and play it. A save that cannot be read or loaded is marked damaged and kept, so it can still be exported.
 function slotOpen(id,steal,done){if(!slotIdx(true).some(e=>e.id===id)){showTitle();toast(tr('slots.that_network_is_gone'),'bad');return;}
   slotClaim(id,!!steal,ok=>{if(!ok){slotBusyModal(id);return;}
     const go=t=>{let s=null;try{s=JSON.parse(t);}catch(e){}
-      if(!s||s.v!==1||s.lost){slotBroke(id);return;}const sv=s.sv;delete s.sv;
+      if(!s||s.v!==1||s.lost){slotBroke(id);return;}if(worldSave(s)){slotRetire(id);showTitle();slotRetiredModal(id);return;}const sv=s.sv;delete s.sv;
       const prev=S;try{S=migrate(s);compute();}catch(e){console.error('[tubes] loading a network failed',e);S=prev;slotBroke(id);return;}
       if(UI.slot&&UI.slot!==id){const nw=S;S=prev;slotLeave();S=nw;}
       slotIn(id,sv);gameResume();if(done)done();};
     const raw=slotRaw(id);if(raw==null){slotFree(id);slotDrop(id);showTitle();toast(tr('slots.that_network_is_gone'),'bad');return;}
     if(raw.startsWith(GZ)){if(raw===UI.gzRaw)go(UI.gzText);else gunzip(raw).then(go,()=>slotBroke(id));}else go(raw);});}
+// A save from the old world map: marked in the index and never written again, so it can still be exported as it was.
+function slotRetire(id){SLOT.no.add(id);const l=slotIdx(),e=l.find(x=>x.id===id);if(e&&!e.retired){e.retired=true;slotIdxPut(l);}
+  if(UI.slot===id){UI.slot=null;ssSet(SLOT_SS,null);}slotFree(id);}
 function slotBroke(id){const l=slotIdx(),e=l.find(x=>x.id===id);if(e){e.broken=true;slotIdxPut(l);}
   if(UI.slot===id){UI.slot=null;ssSet(SLOT_SS,null);}slotFree(id);
   S=null;R=emptyR();UI.started=false;UI.sel=null;$('dash').hidden=true;$('bankBox').hidden=true;renderAll();showTitle();toast(tr('loop.your_saved_game_could_not_be'),'bad');}
@@ -112,8 +115,7 @@ function slotDrop(id){if(!slotOkId(id))return;SLOT.no.add(id);lsDel(SLOT_K+id);i
 /* Another window took this network over, or saved a newer version of it: this one stops writing and says so calmly. */
 function slotLost(id,why){if(UI.slot!==id)return;SLOT.no.add(id);UI.slot=null;ssSet(SLOT_SS,null);SLOT.gzQ.delete(id);if(why==='gone')slotUnbeat(id);
   const r=SLOT.locks.get(id);SLOT.locks.delete(id);if(r)r();
-  const s=pzOn()?UI.pzKeep:S,name=s?s.name:'';
-  if(pzOn()){UI.pzKeep=null;UI.pzFrom='title';toast(tr('slots.name_moved_to_another_window_toast',{name:esc(name)}),'bad');return;}
+  const name=S?S.name:'';
   gameClear();if(why==='gone'){showTitle();toast(tr('slots.name_was_deleted_in_another_window',{name:esc(name)}),'bad');}else slotLostModal(id,name,why);}
 // ---------- the legacy single save becomes the first slot ----------
 /* Read old, write new, read it back, then add it to the index. The old key stays as a fallback until the slot's next
@@ -131,8 +133,8 @@ function slotMigrate(cb){const raw=lsGet(SLOT_OLD);
    exactly one network continues it as before; with more, the title screen lists them. A compressed save is unpacked
    here, so loadSave() stays synchronous for everything else. */
 function slotBoot(go){slotMigrate(()=>{const list=slotIdx(true),mine=ssGet(SLOT_SS);
-  let id=list.some(e=>e.id===mine&&!e.broken)?mine:null;if(!id&&mine)ssSet(SLOT_SS,null);
-  const auto=!id&&list.length===1&&!list[0].broken&&!slotBusy(list[0].id)?list[0].id:null;
+  let id=list.some(e=>e.id===mine&&!e.broken&&!e.retired)?mine:null;if(!id&&mine)ssSet(SLOT_SS,null);
+  const auto=!id&&list.length===1&&!list[0].broken&&!list[0].retired&&!slotBusy(list[0].id)?list[0].id:null;
   if(!id&&!auto){go();return;}
   slotClaim(id||auto,false,ok=>{const w=id||auto;
     if(!ok){if(id){ssSet(SLOT_SS,null);UI.bootBusy=id;}go();return;}

@@ -11,6 +11,7 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const useName=n=>{if(!S.usedNames.includes(n))S.usedNames.push(n);};
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function dateStr(d){const y=1+Math.floor(d/360),m=Math.floor(d/30)%12,dd=d%30+1;return tr('helpers.y_y_mon_d',{y,mon:MONTHS[m],d:dd});}
+// The short way across the seam: from map x a to b, at most half the world either way.
 function wrapDx(a,b){let dx=b-a;if(dx>W/2)dx-=W;if(dx<-W/2)dx+=W;return dx;}
 function kmBetween(a,b){const A=CITY[a],B=CITY[b];return Math.max(20,Math.round(hav(A.lon,A.lat,B.lon,B.lat)));}
 // Cities on a land bridge belong to two landmasses: Cairo reaches Asia overland across the Sinai, the way
@@ -18,7 +19,8 @@ function kmBetween(a,b){const A=CITY[a],B=CITY[b];return Math.max(20,Math.round(
 const lands=C=>C.land2?[C.land,C.land2]:[C.land];
 const isSub=(a,b)=>{const A=lands(CITY[a]),B=lands(CITY[b]);return !A.some(x=>B.includes(x));};
 const popUp=c=>S.pops[c]&&!(S.pops[c].down>S.day);
-const regionsCount=()=>new Set(Object.keys(S.pops).map(c=>CITY[c].reg)).size;
+// States and territories you have POPs in (the gateways overseas are not one).
+const regionsCount=()=>new Set(Object.keys(S.pops).map(c=>CITY[c].reg).filter(r=>r!=='int')).size;
 const ixCity=x=>String(x).split('~')[0];
 function ixIdsIn(c){const o=ixStatic(c);if(S&&S.myIx&&S.myIx[c]&&!o.includes(c))o.unshift(c);return o;}
 const hasIxAt=c=>ixIdsIn(c).some(x=>S.ixp[x]!==undefined);

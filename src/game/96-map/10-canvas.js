@@ -1,6 +1,7 @@
 /* ================= CANVAS ================= */
 const cv=$('map'),ctx=cv.getContext('2d');
-const cam={x:1050,y:330,z:0.8};
+// Over the middle of Australia (lon 134, lat −26).
+const cam=(()=>{const q=proj0(134,-26);return {x:q[0],y:q[1],z:1};})();
 let CW=0,CH=0,DPR=1;
 /* Installed on an iPhone home screen with a translucent status bar, iOS can report a viewport one status bar
    shorter than the screen while drawing from the very top, leaving an empty strip under the tab bar.

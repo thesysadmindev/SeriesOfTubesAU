@@ -19,21 +19,21 @@ function tour(ev) {
   };
   step('title', 'showTitle()');
   step('start', 'ACT.start({});S.cash=1e8;S.lvl=4;S.day=100');
-  step('pops', "for(const c of ['ams','lon','nyc','mos','mnl','sin','sao','dxb','tpe','jnb'])if(CITY[c])ACT.buildPop({city:c})");
-  step('basics', "ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyIx({city:'fra',tier:1,signed:true});ACT.rs({city:'fra'})");
-  step('links', "UI.pending={a:'fra',b:'ams'};ACT.buildLink({tier:1});UI.via='grace';openLinkModal('nyc','lon');ACT.buildLink({tier:1});closeModal()");
-  step('dark fiber', "UI.pending={a:'fra',b:'ams'};UI.lmode='df';UI.dfSys='roadm';openLinkModal('fra','ams');ACT.orderDf();UI.lmode='wave';S.pops.fra.rgen=2;S.pops.ams.rgen=2;const df=S.links.find(l=>l.kind==='df');if(df){ACT.addCh({id:df.id,o:'zr4'});df.ready=S.day}");
+  step('pops', "for(const c of ['mel','hba','bne','per','drw','sin','akl','hkg','tyo','2gos'])if(CITY[c])ACT.buildPop({city:c})");
+  step('basics', "ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyIx({city:'syd',tier:1});ACT.rs({city:'syd'})");
+  step('links', "UI.pending={a:'syd',b:'mel'};ACT.buildLink({tier:1});UI.via='grace';openLinkModal('bne','hba');ACT.buildLink({tier:1});closeModal()");
+  step('dark fiber', "UI.pending={a:'syd',b:'mel'};UI.lmode='df';UI.dfSys='roadm';openLinkModal('syd','mel');ACT.orderDf();UI.lmode='wave';S.pops.syd.rgen=2;S.pops.mel.rgen=2;const df=S.links.find(l=>l.kind==='df');if(df){ACT.addCh({id:df.id,o:'zr4'});df.ready=S.day}");
   for (let d = 0; d < 40; d++) step('day ' + d, 'dayTick();if(S.day%10===0)for(const o of S.offers.slice())if(S.pops[o.city]&&(!o.city2||S.pops[o.city2]))ACT.accept({id:o.id})');
-  for (const c of ['fra', 'ams', 'nyc', 'sha', 'sin', 'sao', 'mos', 'lon', 'stg']) {
+  for (const c of ['syd', 'mel', 'bne', 'per', 'sin', 'akl', 'drw', 'hba', '2gos']) {
     for (const t of ['cust', 'up', 'peer', 'links']) step(`panel ${c}/${t}`, `selectCity('${c}');ACT.tab({t:'${t}'})`);
   }
   step('link panels', 'for(const l of S.links){ACT.selLink({id:l.id});renderPanel()}');
   for (const t of ['goals', 'deals', 'noc', 'nets']) step('left ' + t, `ACT.leftTab({t:'${t}'})`);
   for (const [label, src] of [['dash', 'ACT.dash({});ACT.dashClose()'], ['bank', 'ACT.bank();ACT.bankClose()'],
     ['help', 'showHelp();closeModal()'], ['menu', 'ACT.menu();closeModal()'], ['reset', 'ACT.resetAsk();closeModal()'],
-    ['scenarios', 'scenarioModal();closeModal()'], ['trace', "traceModal('fra');closeModal()"],
+    ['trace', "traceModal('syd');closeModal()"],
     ['route script', 'S.lvl=Math.max(S.lvl,3);S.cash+=1e6;ACT.coreUp();ACT.coreUp();ACT.buyTE();ACT.teEdit();ACT.teExample();ACT.teCheck();closeModal()'],
-    ['routers', "selectCity('fra');ACT.tab({t:'links'});ACT.models()"], ['vxc', "openVxcModal({from:'fra',to:'ams'});closeModal()"],
+    ['routers', "selectCity('syd');ACT.tab({t:'links'});ACT.models()"], ['vxc', "openVxcModal({from:'syd',to:'mel'});closeModal()"],
     ['tutorial', 'S.tut=0;renderCoach();S.tut=3;renderCoach();S.tut=null;renderCoach()'], ['win', 'showWin()']]) step(label, src);
   const failSrc = ev('fireFailure.toString()');
   for (const t of ['harmless', 'fatwave', 'label', 'mtu', 'oops', 'cleaner', 'prepend', 'rpki', 'amp', 'roadmff', 'optic', 'ac', 'cut', 'crash', 'power', 'transit', 'ixloop', 'leak', 'ddos']) {
@@ -44,10 +44,8 @@ function tour(ev) {
     assert.ok(patched.includes(`['${kind}',1]`) && patched.includes(`f.includes('${t}')`), 'fireFailure still has the hooks this tour forces');
     step('failure ' + t, `window.__ff=${patched};S.links.forEach(l=>{l.cut=0;l.eqDown=0;l.chFail=null});S.transit.forEach(t=>t.down=0);for(const c in S.pops)S.pops[c].down=0;compute();__ff();dayTick();ACT.leftTab({t:'noc'})`);
   }
-  // A cable the Baltic event can hit, so the anchor badge does not depend on what the random days built.
-  step('baltic cable', "if(!S.pops.hel)ACT.buildPop({city:'hel'});UI.via='clion';openLinkModal('fra','hel');ACT.buildLink({tier:0});closeModal();UI.via=null");
   const evSrc = ev('fireEvent.toString()');
-  for (const e of ['viral', 'price', 'grant', 'sanction', 'tariff', 'hijack', 'landban', 'shutdown', 'redsea', 'baltic', 'runet', 'typhoon', 'golden', 'gfw', 'gulf']) {
+  for (const e of ['viral', 'price', 'grant', 'sanction', 'tariff', 'hijack', 'landban', 'shutdown', 'topend', 'typhoon', 'gfw']) {
     const patched = evSrc.replace(/^function fireEvent/, 'function').replace('const e=pick(opts);', `const e='${e}';`);
     assert.ok(patched.includes(`const e='${e}';`), 'fireEvent still has the hook this tour forces');
     step('event ' + e, `window.__fe=${patched};__fe();dayTick();ACT.leftTab({t:'deals'})`);
@@ -127,15 +125,6 @@ test('picking a language saves the choice and the game, then reloads', () => {
   assert.equal(ev("localStorage.getItem('sot-lang')"), 'it');
 });
 
-test('a scenario started in English shows its Italian name after switching', () => {
-  const en = load();
-  en.ev("ACT.startScn({id:'stg'});save()");
-  const { ev } = load({ lang: 'it', storage: { 'sot-save-v1': en.ev("slotRaw(UI.slot)") } });
-  const name = ev("SCN.find(x=>x.id==='stg').n");
-  assert.notEqual(name, en.ev("SCN.find(x=>x.id==='stg').n"));
-  assert.ok(ev("document.getElementById('hAsn').textContent").includes(name));
-});
-
 for (const lang of ['en', 'it', 'pt', 'fr', 'es', 'de']) {
   test(`${lang}: every screen, failure and event renders without errors or unfilled placeholders`, () => {
     const { ev, errors } = load(lang === 'en' ? {} : { lang });
@@ -165,7 +154,6 @@ for (const lang of ['en', 'it', 'pt', 'fr', 'es', 'de']) {
       assert.equal(ev("tr('common.terrestrial_fiber')"), 'Terrestrische Glasfaser');
     }
     const { thrown, leaks } = tour(ev);
-    assert.ok(ev('(S.stats.f||{}).anchor'), 'Baltic and Red Sea anchors count for the badge in every language');
     assert.deepEqual(thrown, []);
     assert.deepEqual(leaks, []);
     assert.deepEqual(errors, []);

@@ -20,7 +20,7 @@ body:
         - Customers
         - Money, banks and prices
         - Incidents and events
-        - Scenarios, goals and badges
+        - Goals and badges
         - Something else
     validations:
       required: true

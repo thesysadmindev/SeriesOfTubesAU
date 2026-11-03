@@ -1,37 +1,27 @@
 /* ================= CONSTANTS ================= */
-const W=2000, H=1000, KM=14;
+// The map's size in map pixels: the whole world across (it wraps), lat 84 to −60 down (20-world/10-projection.js).
+// 8471 keeps Australia at the scale the map had when it showed Australia alone.
+const W=8471, H=3803;
 const POP_COST=20000, POP_MO=1500, EYE_RATE=150, CACHE_CAP=100, CACHE_MO=400;
 const DAY_MS=2500, ROUTER_COST=15000, ROUTER_MO=1500, GEN_COST=12000, GEN_MO=600, DIVERSE=1.4;
-const RU_BOX=40000, RU_BOX_MO=2000;
-const UAE_LIC=15000,KSA_LIC=25000;
-// Korea: "sender pays" interconnection makes transit into Seoul about four times the usual price.
-const KR_TRANSIT=4;
-/* Gangnam Style Peering (scenario rule `sender`) turns sender pays all the way up: every Gbps a carrier delivers into
-   Korea is billed again as a sender-pays fee, the incumbents take traffic only over a paid PNI, home gigabit is cheap,
-   and users notice every millisecond of a haul to Tokyo or Hong Kong. */
-const KR_FEE=180,KR_ARPU=0.85,KR_LAT_OK=8,KR_LAT_BAD=40;
 /* Australia: a long way from everywhere. Every gigabit out of the country rides a long, thin subsea
    cable, so transit and waves cost more than almost anywhere else. IX ports are the exception: a
    nonprofit exchange sells 10G for about AUD 350 a month. Retail broadband is dear, but the national
    wholesale network keeps roughly half of every home bill (about AUD 50 a month per home). */
 const AU_TRANSIT=3,AU_WAVE={land:1.8,sub:2.6,ew:1.3},AU_IX=0.8,AU_ARPU=1.8,AU_WHOLESALE=0.45;
-// Fibre to the Basement: on your own fibre you skip the wholesale cut, but competing networks pay the
-// Regional Broadband Scheme levy instead (about $7 a month on a ~$90 bill).
-const AU_LEVY=0.08;
-/* The Philippines: few, thin routes out and an incumbent that owns most of them. 100 GigE transit in Manila
-   costs about 1.9 times Jakarta's (TeleGeography, 2026: $2.25 against $1.21 per Mbps), so the islands pay
-   1.9 times the Asian rate. Homes pay about ₱1,450 (US$25) a month, the incumbent's own figure (PLDT, 2025).
-   Between the islands capacity is dearer than out of the country: a Manila–Cebu wave costs about what
-   Manila–Singapore does, twice Manila–Hong Kong. */
-const PH_TRANSIT=4.7,PH_ARPU=0.7,PH_WAVE=3.7;
+/* The Nearly Broadband Network (2026 terms, no CVC): every home is an AVC billed per service, and a POI's homes reach
+   you only through an NNI port you rent there. The port's size caps what the area can pull. NBN_SUBS: services per
+   Gbps of busy-hour demand (about 3.3 Mbps each); the AVCs add up to AU_WHOLESALE of what those homes pay you. */
+const NNI_T=[{g:10,setup:12000,mo:1800,lead:10},{g:100,setup:45000,mo:7500,lead:21}],NBN_SUBS=300,POI_POP_F=0.5;
 const SITE2_COST=45000,SITE2_MO=3000,TE_COST=60000,TE_MO=4000;
 const SITE2_N=[tr('economy.the_other_building'),tr('economy.campus_b_the_one_with_parking'),tr('economy.across_the_river_dc'),tr('common.the_annex'),tr('economy.suburban_mega_shed'),tr('economy.the_cheaper_one'),tr('economy.formerly_a_shopping_mall'),tr('common.bunker_two')];
-// A city's buildings: '#' becomes a site number from 1 to dcN (dc2N for the second building) that stays put for this network.
-const siteNo=(name,n)=>name.replace('#',1+((S&&S.asn)|0)%(n||1));
+// A city's buildings: '#' becomes a site number from 1 to dcN (dc2N for the second building), or one of the real site
+// codes when dcN is a list, that stays put for this network.
+const siteNo=(name,n)=>name.replace('#',Array.isArray(n)?n[((S&&S.asn)|0)%n.length]:1+((S&&S.asn)|0)%(n||1));
+// Every data centre building in a city, for the panels: "Next-Door-DC S1, S2" for a list of real sites.
+const dcSites=c=>{const C=CITY[c];return [[C.dc,C.dcN],[C.dc2,C.dc2N]].filter(([nm])=>nm).map(([nm,n])=>Array.isArray(n)?nm.replace('#',n.join(', ')):nm.replace('#',n>1?'1–'+n:'1'));};
 const siteName=(c,s)=>s==='b'?CITY[c].dc2?siteNo(CITY[c].dc2,CITY[c].dc2N):SITE2_N[hstr(c)%SITE2_N.length]:siteNo(CITY[c].dc,CITY[c].dcN);
-const BE_TAPE=30000;
-const popCost=c=>Math.round(POP_COST*colo(c))+(c&&CITY[c]&&CITY[c].tape?BE_TAPE:0)+(c&&CITY[c]&&CITY[c].ru?RU_BOX:0)+(c&&CITY[c]&&CITY[c].uae?UAE_LIC:0)+(c&&CITY[c]&&CITY[c].saudi?KSA_LIC:0);
-const CN_LIC=150000, CN_JV_MO=6000;
+const popCost=c=>Math.round(POP_COST*colo(c)*(c&&CITY[c]&&CITY[c].poi?POI_POP_F:1));
 // Scrubbing centers come in tiers by clean bandwidth, and each brings its own dirty-side ingress of that size: when
 // engaged it announces the target's prefix more specifically, so the flood comes to it instead of your ports (a
 // magnet) and it cleans up to its tier (a sponge). Always-on is engaged from the first minute; on-demand is cheaper

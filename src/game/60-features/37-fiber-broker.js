@@ -16,7 +16,7 @@ function brSold(a,b){const k=edgeKey({a,b});let n=0;const ls=new Set(S.links.fil
   for(const x of S.biz)if(ls.has(x.link))n+=x.type==='wwave'?(x.slots||0):x.type==='dfpair'?BR_PAIR:0;return n;}
 const brFree=l=>Math.max(0,brMarket(l.a,l.b)-brSold(l.a,l.b));
 // Once a day, each listing may find a buyer: the more room the route has left, the sooner.
-function brTick(){for(const l of S.links){const L=l.list;if(!L||l.kind!=='df'||!fiberOk({link:l.id,type:'wwave'}))continue;
+function brTick(){for(const l of S.links){const L=l.list;if(!L||l.kind!=='df'||!fiberOk({link:l.id,type:'wwave'})||!custOk({city:l.a,city2:l.b}))continue;
     const free=brFree(l);if(!free)continue;
     if(L.w>0&&freeCh(l)>=1&&Math.random()<Math.min(0.3,free/45)){const n=Math.max(1,Math.min(L.w,freeCh(l),free,1+Math.floor(Math.random()*4)));brSell(l,'wwave',n);L.w-=n;}
     else if(L.p>0&&pairFree(l)&&free>=BR_PAIR&&Math.random()<1/90){brSell(l,'dfpair',1);L.p--;}

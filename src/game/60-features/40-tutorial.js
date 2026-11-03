@@ -5,6 +5,8 @@ const TUT=[
  {t:tr('tutorial.transit_costs_money_per_gigabit'),sel:'[data-act="tab"][data-args*=\'"peer"\'],[data-act="buyIx"],[data-act="rs"]',ok:()=>Object.keys(S.rs).length>0,skip:()=>!ixName(S.home)},
  {t:tr('tutorial.start_the_clock_with_1_and'),sel:'#sp1',ok:()=>S.day>=5},
  {t:tr('tutorial.grow_drag_from_your_pink_router'),sel:null,ok:()=>S.links.length>0},
+ // The suburbs reach you through the NBN: a POI near home, a POP there and an NNI port.
+ {t:tr('tutorial.reach_the_nbn_run_a_link'),sel:'[data-act="nniOrder"]',ok:()=>Object.keys(S.poi||{}).length>0,skip:()=>!POIS.some(p=>p.reg===CITY[S.home].reg)},
  {t:tr('tutorial.businesses_pop_up_as_bubbles_on'),sel:'[data-act="leftTab"][data-args*=\'"deals"\']',ok:()=>S.biz.length>0},
 ];
 function tutorialStart(){let done=false;try{done=!!localStorage.getItem('sot-tut');}catch(e){}if(done||window.__TUBES_TEST__&&!window.__TUBES_TUT__)return;S.tut=0;renderCoach();}

@@ -18,7 +18,7 @@ test('hardware gets dearer over the years, gently, and only for new purchases', 
   const late = at(180 + 365 * 30);
   assert.ok(late.every((v, i) => Math.abs(v / d0[i] - 1.3) < 0.01), 'capped at +30%');
   // what you already own costs what it cost: monthly bills do not move
-  ev("S.day=0;ACT.buyTransit({city:'fra',net:'cog',tier:1});compute()");
+  ev("S.day=0;ACT.buyTransit({city:'syd',net:'cog',tier:1});compute()");
   const mo = ev('R.costMo');
   ev('S.day=180+365*5;compute()');
   assert.equal(ev('R.costMo'), mo);

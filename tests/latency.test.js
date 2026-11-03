@@ -3,37 +3,38 @@ const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 function setup(ev) {
-  ev("ACT.start({});S.cash=1e9;S.lvl=6;S.nextFail=S.nextEvent=1e9;for(const g of GOALS)S.done[g.id]=0;for(const c of ['nyc','lon','ams'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=3");
-  ev("UI.via='hibx';openLinkModal('lon','nyc');ACT.buildLink({tier:1});closeModal();UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal()");
-  ev("ACT.launchBB({city:'lon'});S.pops.lon.bb.d=100;ACT.launchBB({city:'ams'});S.pops.ams.bb.d=100");
+  ev("ACT.start({});S.cash=1e9;S.lvl=6;S.nextFail=S.nextEvent=1e9;for(const g of GOALS)S.done[g.id]=0;for(const c of ['sin','drw','mel','per'])ACT.buildPop({city:c});for(const c in S.pops)S.pops[c].rgen=3");
+  ev("const L=(a,b,v)=>{UI.via=v||null;openLinkModal(a,b);ACT.buildLink({tier:1});closeModal();};L('drw','per');L('per','sin','indigo');L('per','syd');L('syd','mel')");
+  ev("ACT.launchBB({city:'drw'});S.pops.drw.bb.d=100;ACT.launchBB({city:'mel'});S.pops.mel.bb.d=100");
 }
 
 test('broadband backhauled to transit far away is slow, and slow is bad service', () => {
   const { ev, errors } = load();
   setup(ev);
-  ev("ACT.buyTransit({city:'nyc',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'cog',tier:1});compute()");
-  // London's only way out is transit in New York: everything is delivered, and it is all too slow
-  assert.ok(ev('R.citySrv.lon/R.cityDem.lon') > 0.95, 'delivered');
-  assert.ok(ev('R.latFar.lon.ms') > 50, `${ev('R.latFar.lon.ms')} ms round trip`);
-  assert.equal(ev('R.latFar.lon.to'), 'nyc');
-  assert.ok(ev("sfOf(R,'lon')") < 0.55, 'over 50 ms counts as bad service');
-  // Amsterdam goes out in Frankfurt, a few hundred kilometres away: fine
-  assert.equal(ev('R.latF.ams'), undefined);
-  assert.ok(ev("sfOf(R,'ams')") > 0.95);
+  ev("ACT.buyTransit({city:'syd',net:'cog',tier:2});compute()");
+  // Darwin's only way out is transit in Sydney, by way of Perth and the Nullarbor: everything is delivered, and it is
+  // all too slow (nobody sells transit in Singapore: you go there to peer)
+  assert.ok(ev('R.citySrv.drw/R.cityDem.drw') > 0.95, 'delivered');
+  assert.ok(ev('R.latFar.drw.ms') > 50, `${ev('R.latFar.drw.ms')} ms round trip`);
+  assert.equal(ev('R.latFar.drw.to'), 'syd');
+  assert.ok(ev("sfOf(R,'drw')") < 0.55, 'over 50 ms counts as bad service');
+  // Melbourne goes out in Sydney, a few hundred kilometres away: fine
+  assert.equal(ev('R.latF.mel'), undefined);
+  assert.ok(ev("sfOf(R,'mel')") > 0.95);
   // the panel and the NOC say so
-  ev("UI.sel={type:'city',id:'lon'};UI.tab='up';renderPanel()");
-  assert.match(ev("document.getElementById('panelBody').textContent"), /backhauled to transit in New York/);
+  ev("UI.sel={type:'city',id:'drw'};UI.tab='up';renderPanel()");
+  assert.match(ev("document.getElementById('panelBody').textContent"), /backhauled to transit in Sydney/);
   ev("UI.sel=null;UI.left='noc';UI.leftOpen=true;renderLeft()");
   assert.match(ev("document.getElementById('left').textContent"), /Slow cities/);
   // bad service costs customers and money: broadband shrinks instead of growing
-  const d0 = ev('S.pops.lon.bb.d'), a0 = ev('S.pops.ams.bb.d');
+  const d0 = ev('S.pops.drw.bb.d'), a0 = ev('S.pops.mel.bb.d');
   for (let i = 0; i < 20; i++) ev('dayTick()');
-  assert.ok(ev('S.pops.lon.bb.d') < d0, 'London churns');
-  assert.ok(ev('S.pops.ams.bb.d') >= a0, 'Amsterdam does not');
+  assert.ok(ev('S.pops.drw.bb.d') < d0, 'Darwin churns');
+  assert.ok(ev('S.pops.mel.bb.d') >= a0, 'Melbourne does not');
   // local transit fixes it
-  ev("ACT.buyTransit({city:'lon',net:'cog',tier:1});compute()");
-  assert.equal(ev('R.latF.lon'), undefined);
-  assert.ok(ev("sfOf(R,'lon')") > 0.95);
+  ev("ACT.buyTransit({city:'drw',net:'tsy',tier:1});compute()");
+  assert.equal(ev('R.latF.drw'), undefined);
+  assert.ok(ev("sfOf(R,'drw')") > 0.95);
   assert.deepEqual(errors, []);
 });
 
@@ -45,11 +46,11 @@ test('the penalty is on a curve, and traffic that needs no transit is never pena
   assert.ok(Math.abs(ev('latLoss(50)') - 0.2) < 1e-9);
   assert.equal(ev('latLoss(51)'), 0.5);
   setup(ev);
-  // London reaches an open network over peering in New York: far, but no transit, so no penalty
-  ev("const x=ixIdsIn('nyc')[0];ACT.buyIx({city:x,tier:1,signed:true});ACT.rs({city:x});compute()");
+  // Darwin reaches an open network over peering in Singapore: far, but no transit, so no penalty
+  ev("const x=ixIdsIn('sin')[0];ACT.buyIx({city:x,tier:1});ACT.rs({city:x});compute()");
   assert.ok(ev("Object.keys(R.netEg).some(n=>R.netEg[n].ix>0)"), 'traffic over the IX');
-  assert.equal(ev('R.latF.lon'), undefined);
-  assert.equal(ev("sfOf(R,'lon')"), ev("clamp(R.citySrv.lon/R.cityDem.lon,0,1)"));
+  assert.equal(ev('R.latF.drw'), undefined);
+  assert.equal(ev("sfOf(R,'drw')"), ev("clamp(R.citySrv.drw/R.cityDem.drw,0,1)"));
   assert.deepEqual(errors, []);
 });
 

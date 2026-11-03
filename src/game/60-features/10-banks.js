@@ -6,7 +6,7 @@ const BANKS={
  gs:{name:'Goldman Sacks',col:'#6F8FAF',min:'AA',apr:[.07,.11],amt:[4,9],term:[24,48],covs:['peer30','continents2','golf','yacht'],blurb:tr('banks.only_lends_to_people_who_do')},
  db:{name:'Deutsche Bankrupt',col:'#0018A8',min:'A',apr:[.08,.13],amt:[3,7],term:[18,36],covs:['nocog','gen','fax'],blurb:tr('banks.very_solid_mostly')},
  jpm:{name:'JP Morgain',col:'#5B4636',min:'A',apr:[.09,.14],amt:[3,6],term:[12,36],covs:['uptime','logo','nephew'],blurb:tr('banks.lends_you_money_and_also_a')},
- cs:{name:'Credit Sweaty',col:'#7A9CC6',min:'BBB',apr:[.11,.17],amt:[2,5],term:[12,30],covs:['cash50','nochina'],blurb:tr('banks.nervous_but_enthusiastic')},
+ cs:{name:'Credit Sweaty',col:'#7A9CC6',min:'BBB',apr:[.11,.17],amt:[2,5],term:[12,30],covs:['cash50'],blurb:tr('banks.nervous_but_enthusiastic')},
  wf:{name:'Wells Far-Gone',col:'#D71E28',min:'BB',apr:[.12,.18],amt:[2,4],term:[12,24],covs:['nosub','logo','reach99'],blurb:tr('banks.opened_three_accounts_for_you_while')},
  spk:{name:'Spätzle-Sparkasse',col:'#E30613',min:'B',apr:[.05,.08],amt:[1,3],term:[24,60],covs:['spaetzle','kehrwoche'],blurb:tr('banks.cheap_patient_and_very_particular')},
  rev:{name:'Revoloot',col:'#191C1F',min:'B',apr:[.13,.2],amt:[1,3],term:[6,18],covs:['app'],blurb:tr('banks.instant_approval_instant_regret')},
@@ -23,7 +23,7 @@ const BANKS={
 const RATINGS=['C','CCC','B','BB','BBB','A','AA','AAA'];
 const COVS={
  peer30:{l:tr('banks.keep_your_peering_ratio_above_30'),ok:()=>(R.peerShare||0)>=0.3},
- continents2:{l:tr('banks.keep_pops_on_at_least_2'),ok:()=>regionsCount()>=2},
+ continents2:{l:tr('banks.keep_pops_in_at_least_2'),ok:()=>regionsCount()>=2},
  golf:{l:tr('banks.your_ceo_plays_golf_with_our'),ok:()=>true},
  nocog:{l:tr('banks.no_cogentle_transit_anywhere_our_ceo'),ok:()=>!S.transit.some(t=>t.net==='cog')},
  gen:{l:tr('banks.every_pop_needs_a_backup_generator'),ok:()=>Object.values(S.pops).every(p=>p.gen)},
@@ -31,7 +31,6 @@ const COVS={
  uptime:{l:tr('banks.deliver_at_least_95_of_what'),ok:()=>!R.demand||R.served/R.demand>=0.95},
  logo:{l:tr('banks.our_logo_goes_on_every_router'),ok:()=>true},
  cash50:{l:tr('banks.never_let_cash_drop_below_50k'),ok:()=>S.cash>=50000},
- nochina:{l:tr('banks.stay_out_of_mainland_china'),ok:()=>!Object.keys(S.pops).some(cnCity)},
  nosub:{l:tr('banks.no_new_subsea_links_while_this'),ok:l=>S.links.filter(x=>x.sub).length<=(l.base&&l.base.sub||0)},
  spaetzle:{l:tr('banks.peer_at_the_spatzle_ix_in'),ok:()=>S.ixp.stg!==undefined},
  kehrwoche:{l:tr('banks.do_the_kehrwoche_keep_your_noc'),ok:()=>!S.inc.some(i=>S.day-i.start>7)},
@@ -96,7 +95,7 @@ function loanTick(d){
     if(l.left<=0&&l.bal>=1&&(l.model==='balloon'||l.model==='transit')){S.cash-=Math.round(l.bal);toast(tr('banks.bank_the_balloon_popped_the',{bank:esc(B0.name),price:fmt$(l.bal)}),'bad');sfx('err');l.bal=0;}
     if(l.left>0&&l.bal>=1){if(l.model==='storm'){l.apr=+((l.apr0||0)+0.02*S.inc.length).toFixed(3);l.pay=Math.round(annuity(l.bal,l.apr,l.left));}
       else if(l.model==='astro'){const a=+(0.02+Math.random()*0.28).toFixed(3);if(Math.abs(a-l.apr)>=0.08)toast(tr('banks.bank_sign_is_in_retrograde_your',{bank:esc(B0.name),sign:tr(pick(STAR_SIGNS)),apr:(a*100).toFixed(1)}),a>l.apr?'bad':'good');l.apr=a;l.pay=Math.round(annuity(l.bal,l.apr,l.left));}}
-    if(l.left<=0||l.bal<1){S.loans=S.loans.filter(x=>x!==l);track('loan_repaid');toast(tr('banks.loan_from_bank_paid_off_they',{bank:esc(BANKS[l.bank].name)}),'good');sfx('coin');}}
+    if(l.left<=0||l.bal<1){S.loans=S.loans.filter(x=>x!==l);toast(tr('banks.loan_from_bank_paid_off_they',{bank:esc(BANKS[l.bank].name)}),'good');sfx('coin');}}
   // the shark's collectors come by when you are broke
   if(S.cash<0&&S.loans.some(l=>BANKS[l.bank].shark)&&Math.random()<0.03){const c=pick(Object.keys(S.pops));const p=S.pops[c];p.down=Math.max(p.down||0,d+1);const en=N_('banks.two_very_large_gentlemen_from_loan');addInc({type:'shutdown',ref:c,until:d+1,msg:tr(en,{city:CITY[c].name}),cost:0},en);toast(tr('banks.the_loan_shark_sent_a_reminder',{city:CITY[c].name}),'bad');sfx('alert');}
   // offers: now and then, and much more often when you are in trouble

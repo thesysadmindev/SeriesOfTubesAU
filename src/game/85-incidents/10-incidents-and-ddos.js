@@ -49,7 +49,7 @@ const scrubFar=c=>{for(const a of ddosAll())if(a.city===c){const q=(R.haul||[]).
 const DD_W={cgame:8,game:5,esport:5,host:3,metav:3,scrub:2},DD_REC=31000;
 const ddGame=t=>{const b=t&&S.biz.find(x=>x.id===t);return !!b&&(!!BIZ_T[b.type].gaming||b.type==='esport');};
 const ddAttract=()=>S.biz.reduce((n,b)=>n+(b.type==='cgame'?2:BIZ_T[b.type].gaming||b.type==='esport'?1:b.type==='host'?0.25:0),0);
-const ddosOff=()=>{const c=rule('chaos');return c==='calm'||c==='none'||S.mode==='sandbox'||S.mode==='puzzle';};
+const ddosOff=()=>{const c=rule('chaos');return c==='calm'||c==='none'||S.mode==='sandbox';};
 const ddosSpicy=()=>!ddosOff()&&rule('chaos')==='spicy';
 // Expected attacks a day: one in 40, one more in 40 per attractive customer, at most one in 5; BGP at 3 a.m. doubles it.
 const ddosRate=()=>Math.min(1/5,(1+ddAttract())/40)*(ddosSpicy()?2:1);
@@ -63,26 +63,18 @@ function ddMaxPort(){let g=10;for(const t of S.transit)g=Math.max(g,PORT[t.tier]
 const ddEraMax=()=>LEVELS.reduce((a,L)=>a*(L.era||1),1);
 /* 4 Gbps × the era × a heavy tail: a median near 9 G, one in ten over 50 G, one in a hundred over 650 G, at most the
    era's record. A gaming target doubles it. For the first 180 days, and with one POP, never more than twice your
-   biggest port: the first lesson is a full port, not a dead company. Flood Season: a third are 0.8 to 3.4 T monsters
-   that grow through the year, the rest eight times the usual. One draw picks the size. */
-function ddosSize(a){const fl=scnRule('ddos'),r=Math.random(),cap=DD_REC*eraMul()/ddEraMax();
-  if(fl&&r<1/3)return Math.round(Math.min(cap,(800+7800*r)*(1+S.day/365)));
-  const u=fl?(r-1/3)*1.5:r,base=4*eraMul()*(ddGame(a.tgt)?2:1)*(fl?8:1);let g=Math.min(cap,base*Math.pow(Math.max(u,1e-9),-1/0.9));
-  if(!fl&&(S.day<180||Object.keys(S.pops).length<2))g=Math.min(g,2*ddMaxPort());
+   biggest port: the first lesson is a full port, not a dead company. */
+function ddosSize(a){const r=Math.random(),cap=DD_REC*eraMul()/ddEraMax();
+  const base=4*eraMul()*(ddGame(a.tgt)?2:1);let g=Math.min(cap,base*Math.pow(Math.max(r,1e-9),-1/0.9));
+  if(S.day<180||Object.keys(S.pops).length<2)g=Math.min(g,2*ddMaxPort());
   return Math.max(0.1,Math.round(g*10)/10);}
-// Flood Season: 3 to 7 days apart, shrinking with age, level and gamers when attacks are spicy.
-const floodGap=()=>!ddosSpicy()&&!ddAttract()?3+Math.floor(Math.random()*5):Math.max(0.05,(3+Math.random()*5)/(Math.sqrt(1+S.day/180)*(1+ddAttract()/10+Math.max(0,(S.lvl||1)-1)/12)));
-function ddosTick(){if(scnRule('ddos')){if(S.mode==='sandbox')return;let next=+S.scn.nextDdos||3,n=0;
-    // Unless spicy, floods take turns: the next one waits until the last is over.
-    if(!ddosSpicy()&&ddosAll().length)return;
-    while(S.day>=next&&n++<2){ddosAttack(false);next+=floodGap();}S.scn.nextDdos=next<S.day?S.day+floodGap():next;return;}
+function ddosTick(){
   if(ddosOff()||S.day<=40)return;if(ddosAll().length>=(ddosSpicy()?3:2))return;if(Math.random()<ddosRate())ddosAttack(false);}
 // A new attack. With recompute, its outcome is worked out and announced now; otherwise after the day's routing.
-function ddosAttack(recompute=true){const fl=scnRule('ddos');ddosExpire();
+function ddosAttack(recompute=true){ddosExpire();
   S.ddosStarts=(S.ddosStarts||[]).filter(d=>d>S.day-7&&d<=S.day);if(S.ddosStarts.length>=14||!Object.keys(S.pops).length)return null;S.ddosStarts.push(S.day);
   const [tgt,c]=ddosPickTgt(),vec=pick(ddosVectors(ddGame(tgt))),r=Math.random(),dur=r<0.7?1:r<0.95?2:3;
   const a={id:uid(),city:c,tgt,vec,gbps:0,until:S.day+dur,bh:false,start:S.day,carpet:Math.random()<0.2,fresh:1};a.gbps=ddosSize(a);
-  if(fl)a.who=pick(FLOOD_WHO);
   if(!S.ev.ddos)S.ev.ddos=a;else(S.ev.ddosMore||(S.ev.ddosMore=[])).push(a);
   addInc({type:'ddos',ref:c,atk:a.id,until:a.until,msg:tr('ddos.started',{g:fmtG(a.gbps),vec:DDOS_VEC[vec].n,who:ddosWho(a)}),cost:0});
   if(recompute){compute();ddosNews();}
@@ -96,9 +88,9 @@ function ddosNews(){let again=false;const auto=S.ddosAuto&&S.ddosAuto.rtbh;
   if(again)compute();
   const T=S.stats.ddT||(S.stats.ddT={});
   for(const a of ddosAll()){const m=ddosReport(a);if(!m)continue;
-    if(a.fresh){delete a.fresh;const fl=scnRule('ddos'),col=ddosCol(a),sf=ddosSf(a),bad=col>=0.01||sf<0.97;
+    if(a.fresh){delete a.fresh;const col=ddosCol(a),sf=ddosSf(a),bad=col>=0.01||sf<0.97;
       const how=a.bh?tr('ddos.news_rtbh'):col>=0.01?tr('ddos.news_ports',{n:m.full,k:m.slowed}):sf<0.97?tr('ddos.news_target',{p:pct(sf)}):tr('ddos.news_held');
-      toast(`<b>${incTitle('ddos')}: ${esc(ddosWho(a))}</b><br>${esc(tr('ddos.started',{g:fmtG(a.gbps),vec:DDOS_VEC[a.vec].n,who:ddosWho(a)}))} ${esc(how)}${fl&&a.who?`<br><i>${esc(tr('failures.attacker_who',{who:tr(a.who)}))}</i>`:''}`,bad?'bad':'good',[{l:tr('common.open_noc'),act:'leftTab',args:{t:'noc'}}],{a:'city',v:a.city});
+      toast(`<b>${incTitle('ddos')}: ${esc(ddosWho(a))}</b><br>${esc(tr('ddos.started',{g:fmtG(a.gbps),vec:DDOS_VEC[a.vec].n,who:ddosWho(a)}))} ${esc(how)}`,bad?'bad':'good',[{l:tr('common.open_noc'),act:'leftTab',args:{t:'noc'}}],{a:'city',v:a.city});
       if(bad)sfx('alert');}
     // Lessons, once a game each.
     if(!T.port&&m.full>0&&!a.bh){T.port=1;toast(tr('ddos.learn_port'),'',[],{a:'tab',v:'noc'});}
@@ -113,9 +105,7 @@ function ddosDone(a){if(!a||a.done)return;a.done=1;if(a.worst===undefined&&S.pop
   const w=a.worst===undefined?1:a.worst,col=a.colMax||0,held=!a.sac&&w>=0.97&&col<0.01,sac=!!a.sac&&col<0.01;
   if(held){S.stats.ddosOk=(S.stats.ddosOk||0)+1;S.stats.ddosHeld=(S.stats.ddosHeld||0)+1;if(a.gbps>=1000){S.stats.ddosOkBig=(S.stats.ddosOkBig||0)+1;S.stats.ddosMonster=(S.stats.ddosMonster||0)+1;}}
   else if(sac)S.stats.ddosSac=(S.stats.ddosSac||0)+1;
-  else{S.stats.ddosLost=(S.stats.ddosLost||0)+1;if(col>=0.01)S.stats.ddosCol=(S.stats.ddosCol||0)+1;}
-  if(scnRule('ddos')){const w2=tr(FLOOD_WHO.includes(a.who)?a.who:FLOOD_WHO[0]),who=esc(w2.charAt(0).toUpperCase()+w2.slice(1));
-    toast(held?tr('failures.flood_held_g_who_gave_up',{g:fmtG(a.gbps),who}):sac?tr('ddos.flood_sacrificed',{g:fmtG(a.gbps),who:esc(ddosWho(a))}):tr('failures.that_one_got_through_g_city',{g:fmtG(a.gbps),city:esc(CITY[a.city]?CITY[a.city].name:tr('common.your_network')),p:pct(w),who:esc(w2)}),held||sac?'goal':'bad');}}
+  else{S.stats.ddosLost=(S.stats.ddosLost||0)+1;if(col>=0.01)S.stats.ddosCol=(S.stats.ddosCol||0)+1;}}
 /* ---------- the NOC card: the flood's path, top to bottom, and the one thing to do now ---------- */
 function ddosPanel(){return S?ddosAll().filter(a=>S.pops[a.city]).map(ddosOne).join(''):'';}
 const ddCities=l=>{const u=[...new Set(l)];return u.slice(0,3).map(c=>CITY[c].name).join(', ')+(u.length>3?' +'+(u.length-3):'');};

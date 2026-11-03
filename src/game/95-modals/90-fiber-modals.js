@@ -3,9 +3,6 @@ function dfModalBody(a,b,km,pop){
   const sea=!isSub(a,b)&&seaCab(a,b)?ownCabTeaser(a,b):'';
   if(isSub(a,b)&&!subDfCable(a,b))return `<p class="lead" style="margin-top:10px">${tr('fiber_modals.nobody_sells_dark_fiber_on_a')}</p>`+ownCabTeaser(a,b);
   const sc=isSub(a,b)?subDfCable(a,b):null;if(sc)km=sc.km;
-  if(uaePair(a,b))return `<p class="lead" style="margin-top:10px">${tr('fiber_modals.no_dark_fiber_inside_the_uae')}</p>`+sea;
-  if(landX(a,b)&&cnCity(a)===cnCity(b))return `<p class="lead" style="margin-top:10px">${tr('fiber_modals.nobody_sells_one_fiber_pair_across')}</p>`+sea;
-  if(!dfAllowed(a,b))return `<p class="lead" style="margin-top:10px">${tr('fiber_modals.dark_fiber_across_the_chinese_border')}</p>`+sea;
   if(lvl()<2)return `<p class="lead" style="margin-top:10px">${tr('fiber_modals.dark_fiber_unlocks_at_customer_level')}</p>`+sea;
   const src=UI.dfSrc==='build'&&!sc?'build':'lease',sys=DF_SYS[UI.dfSys]&&techOk('sys',UI.dfSys,DF_SYS[UI.dfSys].lvl)?UI.dfSys:'lite',amps=ampCount(km);
   const up=(src==='build'?digCost(km):0)+sysCost(sys)+amps*AMP_COST+pop,mo=(src==='build'?Math.round(km*0.15):dfLeaseMo(km))+amps*AMP_MO;

@@ -19,7 +19,7 @@ function peeringDeskDay(d){const w=Math.floor(d/7);let D=S.pdesk;
   const net=real.length&&Math.random()<0.4?pick(real):null,fresh=Math.random()>=0.6;
   if(!pdeskWant(p,net,fresh)){D.d++;return;}
   if(net)S.peers[net+'@'+c]=true;D.a++;if(!D.ix.includes(c)&&D.ix.length<PDESK_IX)D.ix.push(c);}
-// "Peering desk: 7 new sessions at DE-KICKS and LINX, 3 declined (Selective)."
+// "Peering desk: 7 new sessions at IX Straya and Flat-White-IX, 3 declined (Selective)."
 function pdeskLine(x){const pol=tr(PPOL_N[x.p]||PPOL_N.open);if(!x.a)return trn('peering_desk.n_requests_declined',x.d,{pol});
   const nm=x.ix.slice(0,x.ix.length>4?3:4).map(ixName);if(x.ix.length>4)nm.push(trn('peering_desk.n_more_exchanges',x.ix.length-3));
   let ix;try{ix=new Intl.ListFormat(LANG,{type:'conjunction'}).format(nm);}catch(e){ix=nm.join(', ');}

@@ -15,18 +15,22 @@ const ownCabDays=km=>leadDays(Math.round(300+km*0.05));
 // A quarter-degree grid keeps narrow passages open; edges are checked against
 // coastline segments as well as water cells, so diagonal steps cannot cut land.
 // Nothing is built until an order is quoted; topology and finished routes are reused.
-const SEA_NAV={step:0.25,nx:1440,ny:641,rows:new Map(),edges:null,tiles:new Map(),fine:new Set(),routes:new Map(),ports:new Map(),pass:null,closed:new Set()};
-// Real Europe–Asia cables land at Port Said and cross Egypt beside the canal to Suez; PAN AM crosses Panama by land.
-// Each is an overland edge between two sea cells, priced as the distance it covers.
-const SEA_PASS=[{id:'suez',a:[32.30,31.30],b:[32.58,29.85]},{id:'panama',a:[-79.90,9.40],b:[-79.50,8.85]}];
-function seaSnap(p){const cx=Math.round((seaLon(p[0])+180)/SEA_NAV.step)%SEA_NAV.nx,cy=Math.round((p[1]+80)/SEA_NAV.step);let best=null;
-  for(let r=0;r<=16&&!best;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const x=(cx+dx+SEA_NAV.nx)%SEA_NAV.nx,y=cy+dy;if(!seaWater(x,y)||!seaNode(x,y))continue;const id=y*SEA_NAV.nx+x;if(!seaOpen(id))continue;const d=hav(...p,...seaPoint(id));if(!best||d<best.d)best={id,d};}
+/* The grid covers the map's seas and its gateways, not the globe: eastward from 95°E across the date line to 110°W
+   (Los Angeles), 50°S to 50°N: the north has room for the great circle from Los Angeles to Singapore. Longitudes in
+   it run on past 180 (Honolulu is 202). Every landing city sits at least 4° (the 16 cells a port search reaches)
+   inside it. Whole degrees at the corner keep the coarse nodes on them. */
+const SEA_BOX={lon0:95,lat0:-50,nx:621,ny:401};
+const SEA_NAV={step:0.25,...SEA_BOX,rows:new Map(),edges:null,tiles:new Map(),fine:new Set(),routes:new Map(),ports:new Map()};
+// A longitude on the grid's own scale (lon0 to lon0+360), and the cell column it falls in.
+const seaE=lon=>((lon-SEA_NAV.lon0)%360+360)%360+SEA_NAV.lon0,seaCol=lon=>Math.round((seaE(lon)-SEA_NAV.lon0)/SEA_NAV.step),seaRow=lat=>Math.round((lat-SEA_NAV.lat0)/SEA_NAV.step);
+const seaIn=(x,y)=>x>=0&&x<SEA_NAV.nx&&y>=0&&y<SEA_NAV.ny;
+// Inside the survey box with room for a port search: your own cables stay between Australia, Asia and the Pacific
+// (Oman, Europe and the US east coast are reached on the cables already there).
+const seaReach=c=>{const x=seaCol(CITY[c].lon),y=seaRow(CITY[c].lat);return x>=16&&x<SEA_NAV.nx-16&&y>=16&&y<SEA_NAV.ny-16;};
+function seaSnap(p){const cx=seaCol(p[0]),cy=seaRow(p[1]);let best=null;
+  for(let r=0;r<=16&&!best;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const x=cx+dx,y=cy+dy;if(!seaWater(x,y)||!seaNode(x,y))continue;const id=y*SEA_NAV.nx+x;if(!seaOpen(id))continue;const d=hav(...p,...seaPoint(id));if(!best||d<best.d)best={id,d};}
   return best&&best.id;}
-function seaPasses(){if(!SEA_NAV.pass){SEA_NAV.pass=new Map();for(const P of SEA_PASS){const a=seaSnap(P.a),b=seaSnap(P.b);if(a==null||b==null||a===b)continue;const km=hav(...seaPoint(a),...seaPoint(b));
-  for(const [u,v] of [[a,b],[b,a]]){let L=SEA_NAV.pass.get(u);if(!L)SEA_NAV.pass.set(u,L=[]);L.push({to:v,km,id:P.id});}}}return SEA_NAV.pass;}
-// Which passages are shut: the Red Sea Crisis closes Suez. The main page sets this; the survey worker is told.
-function seaSync(){if(typeof S==='undefined')return;SEA_NAV.closed=new Set(S&&S.scn&&S.scn.id==='redsea'?['suez']:[]);}
-const seaKey=(a,b)=>(a<b?a+'|'+b:b+'|'+a)+(SEA_NAV.closed.size?'|x'+[...SEA_NAV.closed].sort().join(','):'');
+const seaKey=(a,b)=>a<b?a+'|'+b:b+'|'+a;
 const seaLon=x=>((x+180)%360+360)%360-180;
 function seaInit(){if(SEA_NAV.edges)return;
   SEA_NAV.edges=Array.from({length:181},()=>[]);
@@ -43,8 +47,8 @@ function seaLand(lon,lat){seaInit();lon=seaLon(lon);
   const ray=x=>{let inside=false;for(const e of SEA_NAV.edges[clamp(Math.floor(lat)+90,0,180)])if((e[1]>lat)!==(e[3]>lat)&&x<(e[2]-e[0])*(lat-e[1])/(e[3]-e[1])+e[0])inside=!inside;return inside;};
   return ray(lon)||(lon<-170&&ray(lon+360));
 }
-function seaWater(x,y){if(y<0||y>=SEA_NAV.ny)return false;x=(x+SEA_NAV.nx)%SEA_NAV.nx;
-  let row=SEA_NAV.rows.get(y);if(!row){row=new Uint8Array(SEA_NAV.nx);const lat=-80+y*SEA_NAV.step;for(let i=0;i<row.length;i++)row[i]=seaLand(-180+i*SEA_NAV.step,lat)?0:1;SEA_NAV.rows.set(y,row);}return !!row[x];
+function seaWater(x,y){if(!seaIn(x,y))return false;
+  let row=SEA_NAV.rows.get(y);if(!row){row=new Uint8Array(SEA_NAV.nx);const lat=SEA_NAV.lat0+y*SEA_NAV.step;for(let i=0;i<row.length;i++)row[i]=seaLand(SEA_NAV.lon0+i*SEA_NAV.step,lat)?0:1;SEA_NAV.rows.set(y,row);}return !!row[x];
 }
 function seaCross(a,b,e){let x=e[0]+360*Math.round((a[0]-e[0])/360),u=e[2]+x-e[0];
   const dx=b[0]-a[0],dy=b[1]-a[1],ex=u-x,ey=e[3]-e[1],den=dx*ey-dy*ex;
@@ -63,23 +67,23 @@ function seaClear(A,B,margin=0){const a=[A[0],A[1]],b=[a[0]+seaLon(B[0]-a[0]),B[
       for(const e of SEA_NAV.tiles.get(k)||[])if(seaCross(a,b,e))return false;}
   }return true;
 }
-const seaPoint=id=>[-180+(id%SEA_NAV.nx)*SEA_NAV.step,-80+Math.floor(id/SEA_NAV.nx)*SEA_NAV.step];
-const seaNode=(x,y)=>x%4===0&&y%4===0||SEA_NAV.fine.has(Math.floor(-180+x*SEA_NAV.step)+','+Math.floor(-80+y*SEA_NAV.step));
+const seaPoint=id=>[SEA_NAV.lon0+(id%SEA_NAV.nx)*SEA_NAV.step,SEA_NAV.lat0+Math.floor(id/SEA_NAV.nx)*SEA_NAV.step];
+const seaNode=(x,y)=>x%4===0&&y%4===0||SEA_NAV.fine.has(Math.floor(seaLon(SEA_NAV.lon0+x*SEA_NAV.step))+','+Math.floor(SEA_NAV.lat0+y*SEA_NAV.step));
 // A coarse city marker must not snap into a tiny disconnected estuary or lake.
 function seaOpen(id){if(!SEA_NAV.connected)SEA_NAV.connected=new Map();if(SEA_NAV.connected.has(id))return SEA_NAV.connected.get(id);
   const seen=new Set([id]),queue=[id];let open=false;
   for(let i=0;i<queue.length;i++){const v=queue[i];if(SEA_NAV.connected.has(v)){open=SEA_NAV.connected.get(v);if(open)break;}
     if(queue.length>256){open=true;break;}const x=v%SEA_NAV.nx,y=Math.floor(v/SEA_NAV.nx);
-    for(const stride of (x%4===0&&y%4===0?[4,1]:[1]))for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(!sx&&!sy)continue;const dx=sx*stride,dy=sy*stride,xx=(x+dx+SEA_NAV.nx)%SEA_NAV.nx,yy=y+dy,n=yy*SEA_NAV.nx+xx;
-      if(seen.has(n)||!seaNode(xx,yy)||!seaWater(xx,yy)||!seaStep(v,dx,dy))continue;seen.add(n);queue.push(n);}
+    for(const stride of (x%4===0&&y%4===0?[4,1]:[1]))for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(!sx&&!sy)continue;const dx=sx*stride,dy=sy*stride,xx=x+dx,yy=y+dy,n=yy*SEA_NAV.nx+xx;
+      if(!seaIn(xx,yy)||seen.has(n)||!seaNode(xx,yy)||!seaWater(xx,yy)||!seaStep(v,dx,dy))continue;seen.add(n);queue.push(n);}
   }for(const v of seen)SEA_NAV.connected.set(v,open);return open;
 }
 function seaPorts(city){if(SEA_NAV.ports.has(city))return SEA_NAV.ports.get(city);
-  const c=CITY[city],p=[c.lon,c.lat],cx=Math.round((seaLon(c.lon)+180)/SEA_NAV.step)%SEA_NAV.nx,cy=Math.round((c.lat+80)/SEA_NAV.step),wet=!seaLand(...p),bins=new Map();
+  const c=CITY[city],p=[c.lon,c.lat],cx=seaCol(c.lon),cy=seaRow(c.lat),wet=!seaLand(...p),bins=new Map();
   // Inland city markers may reach more than one sea (Cairo, for example).
   // Keep shore approaches in different directions; routing chooses the right sea.
   for(let r=0;r<=16;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
-    if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const x=(cx+dx+SEA_NAV.nx)%SEA_NAV.nx,y=cy+dy;if(!seaWater(x,y)||!seaNode(x,y))continue;
+    if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const x=cx+dx,y=cy+dy;if(!seaWater(x,y)||!seaNode(x,y))continue;
     const id=y*SEA_NAV.nx+x,q=seaPoint(id),d=hav(...p,...q),angle=Math.atan2(q[1]-p[1],seaLon(q[0]-p[0])*Math.cos(c.lat*Math.PI/180)),bin=Math.floor((angle+Math.PI)*8/Math.PI)%16+'|'+Math.floor(d/100);
     if(d>350||bins.has(bin)&&d>=bins.get(bin).d)continue;
     if(wet&&!seaClear(p,q))continue;
@@ -100,15 +104,14 @@ function seaStep(id,dx,dy){if(!SEA_NAV.known){const n=SEA_NAV.nx*SEA_NAV.ny;SEA_
     for(const e of SEA_NAV.tiles.get((((x+90)%180+180)%180)+','+y)||[])if(seaCross(a,b,e))return false;
   open[id]|=bit;return true;
 }
-function seaSearch(starts,ends,target,clearance){const PASS=seaPasses();
+function seaSearch(starts,ends,target,clearance){
   const dist=new Map(),prev=new Map(),done=new Set(),heap=[],goals=new Map(ends.map(p=>[p.id,p.d]));let goal=Infinity,goalEnd=null;
   const put=(id,g)=>{const v={id,g,f:g+(id===-1?0:hav(...seaPoint(id),...target))};let i=heap.length;heap.push(v);while(i){const p=(i-1)>>1;if(heap[p].f<=v.f)break;heap[i]=heap[p];i=p;}heap[i]=v;};
   const take=()=>{const out=heap[0],v=heap.pop();if(heap.length){let i=0;while(i*2+1<heap.length){let j=i*2+1;if(j+1<heap.length&&heap[j+1].f<heap[j].f)j++;if(heap[j].f>=v.f)break;heap[i]=heap[j];i=j;}heap[i]=v;}return out;};
   for(const p of starts){dist.set(p.id,p.d);put(p.id,p.d);}
   while(heap.length){const {id,g}=take();if(id===-1){const path=[];for(let v=goalEnd;v!==undefined;v=prev.get(v))path.push(seaPoint(v));return path.reverse();}if(done.has(id))continue;done.add(id);if(goals.has(id)&&g+goals.get(id)<goal){goal=g+goals.get(id);goalEnd=id;put(-1,goal);}
     const x=id%SEA_NAV.nx,y=Math.floor(id/SEA_NAV.nx),a=seaPoint(id);
-    for(const P of PASS.get(id)||[]){if(SEA_NAV.closed.has(P.id)||done.has(P.to))continue;const ng=g+P.km;if(ng<(dist.get(P.to)??Infinity)){dist.set(P.to,ng);prev.set(P.to,id);put(P.to,ng);}}
-    for(const stride of (x%4===0&&y%4===0?[4,1]:[1]))for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(!sx&&!sy)continue;const dx=sx*stride,dy=sy*stride,xx=(x+dx+SEA_NAV.nx)%SEA_NAV.nx,yy=y+dy,v=yy*SEA_NAV.nx+xx;if(done.has(v)||!seaNode(xx,yy)||!seaWater(xx,yy))continue;
+    for(const stride of (x%4===0&&y%4===0?[4,1]:[1]))for(let sy=-1;sy<=1;sy++)for(let sx=-1;sx<=1;sx++){if(!sx&&!sy)continue;const dx=sx*stride,dy=sy*stride,xx=x+dx,yy=y+dy,v=yy*SEA_NAV.nx+xx;if(!seaIn(xx,yy)||done.has(v)||!seaNode(xx,yy)||!seaWater(xx,yy))continue;
       const b=seaPoint(v);if(!seaStep(id,dx,dy))continue;
       const near=clearance&&(!seaWater(xx-2,yy)||!seaWater(xx+2,yy)||!seaWater(xx,yy-2)||!seaWater(xx,yy+2)),ng=g+hav(...a,...b)*(near?1+clearance:1);
       if(ng<(dist.get(v)??Infinity)){dist.set(v,ng);prev.set(v,id);put(v,ng);}
@@ -124,7 +127,7 @@ function seaGC(a,b){const r=Math.PI/180,v=([lo,la])=>[Math.cos(la*r)*Math.cos(lo
 function seaGreat(path,margin){const out=[path[0]];for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i];
   if(hav(...a,...b)>300){const gc=seaGC(a,b);let ok=true,q=a;for(const p of gc){if(!seaClear(q,p,margin)){ok=false;break;}q=p;}if(ok){out.push(...gc);continue;}}out.push(b);}return out;}
 const seaLength=pts=>Math.round(pts.slice(1).reduce((s,p,i)=>s+hav(...pts[i],...p),0));
-function seaRoutes(a,b){seaSync();const reverse=a>b,key=seaKey(a,b);let routes=SEA_NAV.routes.get(key);
+function seaRoutes(a,b){const reverse=a>b,key=seaKey(a,b);let routes=SEA_NAV.routes.get(key);
   if(!routes){const A=reverse?b:a,B=reverse?a:b,PA=seaPorts(A),PB=seaPorts(B);routes=[];
     if(seaNear(PA).length&&seaNear(PB).length)for(const [penalty,margin,all] of [[1,0.5,false],[0.3,0.25,false],[0,0,true]]){
       const raw=seaSearch(all?PA:seaNear(PA),all?PB:seaNear(PB),[CITY[B].lon,CITY[B].lat],penalty);if(!raw)break;
@@ -138,25 +141,30 @@ function seaRoutes(a,b){seaSync();const reverse=a>b,key=seaKey(a,b);let routes=S
 // Surveys run off the UI thread in browsers. Tests and browsers without workers
 // use the same deterministic router synchronously. Switching designs uses the cache.
 const SEA_SURVEY={worker:null,pending:new Set(),failed:false};
-function seaReady(a,b){seaSync();const key=seaKey(a,b);
+function seaReady(a,b){const key=seaKey(a,b);
   if(SEA_NAV.routes.has(key)||typeof Worker==='undefined'||SEA_SURVEY.failed)return true;
   if(SEA_SURVEY.pending.has(key))return false;
   try{
     if(!SEA_SURVEY.worker){
-      const helpers=[seaSnap,seaPasses,seaGC,seaGreat,seaNear,seaKey,seaSync,seaLon,seaInit,seaLand,seaWater,seaCross,seaClear,seaPoint,seaNode,seaOpen,seaPorts,seaPort,seaStep,seaSearch,seaSimplify,seaDensify,seaLength,seaRoutes,hav,clamp];
-      const code='const SEA_PASS='+JSON.stringify(SEA_PASS)+';const COAST_LL='+JSON.stringify(COAST_LL)+';const CITY='+JSON.stringify(Object.fromEntries(CITIES.map(c=>[c.id,{lon:c.lon,lat:c.lat}])))+';const SEA_NAV={step:0.25,nx:1440,ny:641,rows:new Map(),edges:null,tiles:new Map(),fine:new Set(),routes:new Map(),ports:new Map(),pass:null,closed:new Set()};'+
-        helpers.map(f=>'const '+f.name+'='+f.toString()+';').join('')+'onmessage=({data:{a,b,key,closed}})=>{try{SEA_NAV.closed=new Set(closed||[]);postMessage({key,routes:seaRoutes(a,b)});}catch(e){postMessage({key,error:String(e)});}};';
+      const helpers=[seaSnap,seaGC,seaGreat,seaNear,seaKey,seaLon,seaE,seaCol,seaRow,seaIn,seaInit,seaLand,seaWater,seaCross,seaClear,seaPoint,seaNode,seaOpen,seaPorts,seaPort,seaStep,seaSearch,seaSimplify,seaDensify,seaLength,seaRoutes,hav,clamp];
+      const code='const COAST_LL='+JSON.stringify(COAST_LL)+';const CITY='+JSON.stringify(Object.fromEntries(CITIES.map(c=>[c.id,{lon:c.lon,lat:c.lat}])))+';const SEA_NAV={step:0.25,...'+JSON.stringify(SEA_BOX)+',rows:new Map(),edges:null,tiles:new Map(),fine:new Set(),routes:new Map(),ports:new Map()};'+
+        helpers.map(f=>'const '+f.name+'='+f.toString()+';').join('')+'onmessage=({data:{a,b,key}})=>{try{postMessage({key,routes:seaRoutes(a,b)});}catch(e){postMessage({key,error:String(e)});}};';
       const url=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
       try{SEA_SURVEY.worker=new Worker(url);}finally{URL.revokeObjectURL(url);}
       const refresh=key=>{if(!S)return;const survey=$('modalCard').querySelector('[data-sea-survey]');if(UI.pending&&!$('modal').hidden&&survey&&(!key||survey.dataset.seaSurvey===key))openLinkModal(UI.pending.a,UI.pending.b);renderPanel();renderLeft();if(!$('dash').hidden)renderDash();};
       SEA_SURVEY.worker.onmessage=({data})=>{SEA_SURVEY.pending.delete(data.key);if(data.error){SEA_SURVEY.failed=true;SEA_SURVEY.worker.terminate();SEA_SURVEY.worker=null;SEA_SURVEY.pending.clear();}else SEA_NAV.routes.set(data.key,data.routes);refresh(data.error?undefined:data.key);};
       SEA_SURVEY.worker.onerror=()=>{SEA_SURVEY.failed=true;SEA_SURVEY.worker.terminate();SEA_SURVEY.worker=null;SEA_SURVEY.pending.clear();refresh();};
     }
-    SEA_SURVEY.pending.add(key);const [from,to]=key.split('|');SEA_SURVEY.worker.postMessage({a:from,b:to,key,closed:[...SEA_NAV.closed]});return false;
+    SEA_SURVEY.pending.add(key);const [from,to]=key.split('|');SEA_SURVEY.worker.postMessage({a:from,b:to,key});return false;
   }catch(e){SEA_SURVEY.failed=true;if(SEA_SURVEY.worker)SEA_SURVEY.worker.terminate();SEA_SURVEY.worker=null;SEA_SURVEY.pending.clear();return true;}
 }
-const seaSurveyAttr=(a,b)=>{seaSync();const k=seaKey(a,b);return SEA_SURVEY.pending.has(k)?`data-sea-survey="${k}"`:'';};
-function seaMapPoints(pts){const out=[];for(const p of pts){const q=proj(...p);if(out.length)q[0]+=W*Math.round((out[out.length-1][0]-q[0])/W);out.push(q);}return out;}
+const seaSurveyAttr=(a,b)=>{const k=seaKey(a,b);return SEA_SURVEY.pending.has(k)?`data-sea-survey="${k}"`:'';};
+// A surveyed path on the map. Its ends are the cities' real spots, but a city may be drawn nudged off it (CITY_NUDGE),
+// which deep zoom turns into a gap: the ends snap to where the two cities are drawn, whichever way round the path runs.
+function seaMapPoints(pts,a,b){const out=[];for(const p of pts){const q=proj(...p);if(out.length)q[0]+=W*Math.round((out[out.length-1][0]-q[0])/W);out.push(q);}
+  const A=CITY[a],B=CITY[b];if(out.length<2||!A||!B)return out;const n=out.length-1,d=(p,C)=>Math.hypot(wrapDx(C.x,p[0]),p[1]-C.y);
+  const [s,e]=d(out[0],A)+d(out[n],B)<=d(out[0],B)+d(out[n],A)?[A,B]:[B,A],at=(C,p)=>[C.x+W*Math.round((p[0]-C.x)/W),C.y];
+  out[0]=at(s,out[0]);out[n]=at(e,out[n]);return out;}
 
 // Designs pay for progressively tighter surveys; all use a feasible marine path.
 const SEA_DESIGNS={standard:{n:N_('common.standard'),cost:1,time:1},optimized:{n:N_('common.optimized'),cost:3,time:1.3},express:{n:N_('common.low_latency'),cost:7,time:1.7}};
@@ -199,7 +207,7 @@ const cabOpen=()=>!!S.won||gatesOpen();
 function ownCabWhy(a,b){if(!seaCab(a,b))return tr('own_cable.this_route_is_on_land_build');
   if(!cabOpen())return tr('own_cable.laying_your_own_subsea_cable_is');
   for(const c of [a,b])if(!landing(c))return tr('own_cable.city_has_no_cable_landing_station',{city:CITY[c].name});
-  if(cnCity(a)||cnCity(b))return tr('own_cable.nobody_gives_a_foreign_network_a');
+  for(const c of [a,b])if(!seaReach(c))return tr('own_cable.city_is_beyond_the_survey_area',{city:CITY[c].name});
   if(!seaReady(a,b))return tr('own_cable.surveying_a_sea_route');
   const routes=seaRoutes(a,b);if(!routes.length)return tr('own_cable.no_navigable_sea_route_connects');
   const km=Math.min(...routes.map(r=>r.km));if(!subNeed(km))return tr('own_cable.km_km_is_more_than_any',{km:km.toLocaleString(),max:Math.round(SUB_MAXKM()).toLocaleString()});

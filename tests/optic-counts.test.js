@@ -2,8 +2,8 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {load}=require('./harness');
 function setup(ev,sub=false){ev(`ACT.start({});S.cash=1e9;S.lvl=13;S.day=100;for(const g of GOALS)S.done[g.id]=0;
- S.pops.fra.rgen=mainRG(4);S.pops.fra.routers=16;S.pops.ams={...S.pops.fra};
- S.links=[{id:'fiber',a:'fra',b:'ams',kind:'df',own:true,sub:${sub},sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1}];
+ S.pops.syd.rgen=mainRG(4);S.pops.syd.routers=16;S.pops.mel={...S.pops.syd};
+ S.links=[{id:'fiber',a:'syd',b:'mel',kind:'df',own:true,sub:${sub},sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1}];
  UI.sel={type:'link',id:'fiber'};renderPanel();`);}
 const count=ev=>ev('S.links[0].ch.length');
 for(const sub of [false,true])test(`typed counts buy and remove optics on ${sub?'subsea':'land'} fiber`,()=>{
@@ -36,9 +36,9 @@ test('batch price matches individual channel purchases with spares, regen cards 
 test('unaffordable batches, port limits and invalid input never partially change state',()=>{
  const {ev,dom}=load();try{setup(ev);ev('S.cash=1');
  ev("ACT.setChCount({id:'fiber',o:'zr4',n:5})");assert.equal(count(ev),0);assert.equal(ev('S.cash'),1);
- ev('S.cash=1e9;S.pops.ams.routers=1');const max=ev("Math.floor(portsMax('ams')-portsUsed('ams'))");
+ ev('S.cash=1e9;S.pops.mel.routers=1');const max=ev("Math.floor(portsMax('mel')-portsUsed('mel'))");
  ev(`ACT.setChCount({id:'fiber',o:'zr4',n:${max+1}})`);assert.equal(count(ev),0);assert.equal(ev('S.cash'),1e9);
- ev('S.pops.ams.routers=16');
+ ev('S.pops.mel.routers=16');
  for(const n of ['NaN','Infinity','-1','1.5','65',"'3'"]){ev(`ACT.setChCount({id:'fiber',o:'zr4',n:${n}})`);assert.equal(count(ev),0);}
  ev("ACT.setChCount({id:'missing',o:'zr4',n:2});ACT.setChCount({id:'fiber',o:'missing',n:2})");assert.equal(ev('S.cash'),1e9);
  }finally{dom.window.close();}
@@ -50,7 +50,7 @@ test('channel reservations and reach, line-system, level and router compatibilit
  setup(ev);ev("S.links[0].km=20000;ACT.setChCount({id:'fiber',o:'zr4',n:2})");assert.equal(count(ev),0);
  setup(ev);ev("S.links[0].sys='lite';ACT.setChCount({id:'fiber',o:'tp16',n:2})");assert.equal(count(ev),0);
  setup(ev);ev("S.lvl=1;S.done={};ACT.setChCount({id:'fiber',o:'tp16',n:2})");assert.equal(count(ev),0);
- setup(ev);ev("S.pops.ams.rgen=0;ACT.setChCount({id:'fiber',o:'tp32',n:2})");assert.equal(count(ev),0);
+ setup(ev);ev("S.pops.mel.rgen=0;ACT.setChCount({id:'fiber',o:'tp32',n:2})");assert.equal(count(ev),0);
  setup(ev);ev("S.links[0].ch=['zr4','zr8','zr4'];ACT.setChCount({id:'fiber',o:'zr4',n:0})");assert.equal(ev("JSON.stringify(S.links[0].ch)"),'["zr8"]');
  }finally{dom.window.close();}
 });
@@ -89,14 +89,14 @@ test('#229 giving up a fiber puts its optics on the spares shelf, and so does de
  assert.equal(ev('S.spares.zr4'),3);assert.equal(ev('S.spares.tp16'),1);
  assert.match(ev("S.log.map(e=>e.t).join(' | ')"),/3 optics went back on the spares shelf/);
  // the next channel of that type uses a spare for free
- ev("S.links.push({id:'f2',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute()");
+ ev("S.links.push({id:'f2',a:'syd',b:'mel',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute()");
  const cash=ev('S.cash');ev("ACT.setChCount({id:'f2',o:'zr4',n:3})");assert.equal(ev('S.cash'),cash,'spares are used first');assert.equal(ev('S.spares.zr4'),0);
  // decommissioning a POP returns the optics of every link it takes with it
- ev("S.pops.lon={...S.pops.fra};S.links.push({id:'f3',a:'lon',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:['tp16','tp16'],ready:0,day:0,cut:0,mo:1});compute()");
- ev("decommission(['lon'])");
+ ev("S.pops.hba={...S.pops.syd};S.links.push({id:'f3',a:'hba',b:'mel',kind:'df',own:true,sys:'roadm',km:400,ch:['tp16','tp16'],ready:0,day:0,cut:0,mo:1});compute()");
+ ev("decommission(['hba'])");
  assert.equal(ev("S.links.some(l=>l.id==='f3')"),false);assert.equal(ev('S.spares.tp16'),3);
  // a link without optics says nothing about spares
- ev("S.log=[];S.links.push({id:'f4',a:'fra',b:'ams',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute();ACT.rmLink({id:'f4'});ACT.rmLink({id:'f4'})");
+ ev("S.log=[];S.links.push({id:'f4',a:'syd',b:'mel',kind:'df',own:true,sys:'roadm',km:400,ch:[],ready:0,day:0,cut:0,mo:1});compute();ACT.rmLink({id:'f4'});ACT.rmLink({id:'f4'})");
  assert.doesNotMatch(ev("S.log.map(e=>e.t).join(' | ')"),/spares shelf/);
  assert.deepEqual(errors,[]);
  }finally{dom.window.close();}

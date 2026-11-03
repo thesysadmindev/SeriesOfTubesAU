@@ -1,6 +1,6 @@
 Object.assign(ACT,{
  // Backbone technology: buy the next level (one step at a time), or run any level already paid for.
- coreUp:()=>{if(!S.core||S.mode==='puzzle'||S.pz||S.ar||S.scn)return;const n=S.core.lv+1;if(n>4)return;
+ coreUp:()=>{if(!S.core)return;const n=S.core.lv+1;if(n>4)return;
    if(lvl()<CORE_REQ[n]){toast(tr('core.needs_customer_level_n',{n:CORE_REQ[n]}),'bad');sfx('err');return;}if(!spend(CORE_COST[n]))return;
    S.core.lv=n;S.core.run=n;delete S.core.legacy;const out=coreOut().length;
    toast(tr('core.your_backbone_now_runs_lv',{lv:tr(CORE_LV[n])})+(out?' '+trn('core.n_pops_stay_outside',out):''),'good');sfx('build');after();},

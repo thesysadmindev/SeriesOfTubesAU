@@ -2,9 +2,36 @@
 
 All notable changes to this project are documented here. The project follows
 [Semantic Versioning](https://semver.org/). Each release is deployed to
-[seriesoftub.es](https://seriesoftub.es).
+[GitHub Pages](https://seriesoftubes.au/). Releases up to 2.3.0 are
+[Series of Tubes](https://github.com/fjaeckel/seriesoftubes) by Frederic Jung, the world-map game this one is built on.
 
 ## [Unreleased]
+
+- Series of Tubes is now set in Australia: the whole world is on the map, but the game is Australian, with every state and territory, Tasmania across Bass Strait, and PoPs overseas only where Australian traffic goes to peer: Singapore, Kuala Lumpur, Hong Kong, Tokyo, Auckland, Los Angeles, San Jose, Ashburn, London and Marseille. Networks, cables, exchanges and conferences are all Australian now, with puns to match.
+- All 121 Nearly Broadband Network points of interconnect are on the map, each with the homes it serves. To sell broadband around a POI, open a POP there, rent an NNI port (10G or 100G) and haul it home over a leased wave or your own dark fibre; the port's size caps what the area can pull.
+- Every home you connect is an AVC on your bill, and every NNI port has its monthly rent, so each POI area is a small business of its own.
+- Rent racks: lease a cage in someone else's data centre or build a hall of your own, then sign colocation and dedicated-server customers who pay for every rack they fill.
+- Start in any Australian data centre, from the capitals to Newcastle, Townsville, Port Hedland and Launceston: that is where transit is sold, and nowhere else. You cannot start at a POI.
+- Every Next-Door-DC and Equinox data centre is on the map under its real site code, from Next-Door-DC S1 to Equinox SY9, including the edge sites in Port Hedland and Newman and Next-Door-DC KL1 in Kuala Lumpur.
+- Overseas PoPs are for peering only: exchange ports, PNIs and caches, but no transit to buy, no homes to sell broadband to and no business customers.
+- NBN POIs take no transit, exchange or fabric ports: haul transit out to them from a data centre, directly or through another POI.
+- Caches, PNIs and rack space are bought in data centres only. A POI is just a place to connect to from one, and a cache or PNI an old network had at a POI is removed when it loads.
+- Subsea cables now stop at their real landing stations overseas, Fiji, Guam, Hawaii, Jakarta and Oman: build a PoP there to use the cable onward. Nothing else is sold at a landing station.
+- New cables to Europe and the US east coast: the Oh-Man Cable from Perth to Oman, See-Me-Wee 3 from Perth to Marseille and London, and the Pond Hopper from London to Ashburn.
+- Towns near the edge of a city's magnified area, such as Traralgon, are no longer drawn in the sea.
+- You can zoom in three times further than before, so the POIs packed into the capitals are easier to tell apart.
+- Your own subsea cables are drawn right up to the city at both ends again, instead of stopping a little way off when you zoom in close.
+- The card where you pick your home city credits Series of Tubes, the original game by Frederic Jung, with a link to it.
+- The welcome message for a new network now says APNIC assigned your AS number, as it would in Australia.
+- Megapork now reaches the overseas PoPs, at a premium over a wave on a subsea cable, and Consolation Connect has closed.
+- Customer levels now ask for POIs with a live NNI, racks rented and states and territories instead of continents, and Tier 1 means PNIs with the Big Four at home as well as the global Tier 1s.
+- New badges for the places only Australia has: Beyond the Black Stump, Nullarbor Nights, Bass Strait Crossing, Rack 'em Up and Full House.
+- Networks from the world map cannot be played on the new map: they stay listed on the title screen, marked as retired, so you can still export or delete them.
+- The help page explains Australian wave prices, conferences and quirks, and the world map's rules for China, Russia, Korea and the Gulf are gone.
+- Puzzles, Architect runs, scenarios and the weekly challenges are gone: the start screen has two doors, Normal and Sandbox. A network saved from a scenario carries on as a normal game.
+- The game has a new home at seriesoftubes.au.
+- The site counts visits by country only, with no cookies. Nothing else about you or your game is recorded.
+- The game now lives at github.com/thesysadmindev/SeriesOfTubesAU: the source link, bug reports and release notes point there, and the chat group link is gone.
 
 ## [2.3.0] — 2026-10-31
 

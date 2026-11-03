@@ -16,9 +16,7 @@ lets us load your exact network. One topic per issue, please.
 Ideas are best when they say what happens in real networks and how that could become
 a fun mechanic.
 
-The [Signal group](https://signal.group/#CjQKIJwvEt5fYt1pvw7J2pV664CyUyGJXmAJLV8ia3nUdAD7EhA_FzdxflEzkNmcvDHdVgLQ) is for hanging out with other players, not for
-reports: anything meaningful (a bug, an idea, a balance problem) goes into an issue,
-even if you first mentioned it in the chat. Things said only in Signal get lost.
+Anything meaningful (a bug, an idea, a balance problem) goes into an issue, so it does not get lost.
 
 ## Development
 
@@ -75,7 +73,7 @@ where your change and `main` touched the same lines.
 
 Open issues are not a to-do list. Every issue is triaged first: some are accepted, some
 still need discussion, some are left for the maintainer and some won't happen at all.
-**Only issues labelled [`implement`](https://github.com/fjaeckel/seriesoftubes/labels/implement)
+**Only issues labelled [`implement`](https://github.com/thesysadmindev/SeriesOfTubesAU/labels/implement)
 are open for outside contributions.** Pull requests for any other issue will be closed,
 however good the code is. Say in the issue that you're taking it, so two people don't
 build the same thing.

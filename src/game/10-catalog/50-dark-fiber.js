@@ -23,17 +23,20 @@ const ampCount=km=>Math.max(0,Math.floor(km/AMP_EVERY));
 const fmtCap=g=>g>=1000?(+(g/1000).toFixed(1))+'T':g+'G';
 const WAVECO=['Zay-No Fiber','Loomin’ Technologies','Clown Castle Fiber','Bolt Technology','youNetworks','G&T (Gin and Transit)'];
 const MONTHS=[tr('common.jan'),tr('common.feb'),tr('common.mar'),tr('common.apr'),tr('common.may'),tr('common.jun'),tr('common.jul'),tr('common.aug'),tr('common.sep'),tr('common.oct'),tr('common.nov'),tr('common.dec')];
-const REG={AM:tr('common.americas'),SA:tr('common.south_america'),EU:tr('common.europe'),AF:tr('common.africa'),AS:tr('common.asia'),OC:tr('common.oceania')};
+// The map's regions: Australia's states and territories, and the gateways overseas.
+const REG={nsw:tr('common.new_south_wales'),vic:tr('common.victoria'),qld:tr('common.queensland'),wa:tr('common.western_australia'),sa:tr('common.south_australia'),tas:tr('common.tasmania'),nt:tr('common.northern_territory'),act:tr('common.australian_capital_territory'),int:tr('common.overseas')};
 const waveMo=(km,sub,tier)=>Math.round((300+km*1.2)*LT[tier].m*(sub?1.8:1));
 const FABS=[
- {id:'mgp',name:'Megapork',col:'#FF5A1F',cities:['mel','bne','per','adl','icn','sea','sjc','dal','chi','ash','nyc','mia','lon','ams','fra','par','mrs','sto','mad','sin','hkg','tok','syd','jnb'],blurb:tr('dark_fiber.elastic_interconnection_now_with')},
- {id:'pkf',name:'PocketFabric',col:'#00A896',cities:['sea','sjc','dal','chi','ash','nyc','mia','sao','lon','ams','fra'],blurb:tr('dark_fiber.a_whole_network_fabric_that_fits')},
- {id:'ccn',name:'Consolation Connect',col:'#8E44AD',cities:['icn','lon','fra','ams','mrs','bom','sin','hkg','tok','syd','lag','jnb'],blurb:tr('dark_fiber.strong_in_asia_and_africa_every')},
+ {id:'mgp',name:'Megapork',col:'#FF5A1F',cities:['syd','mel','bne','per','adl','cbr','sin','hkg','tyo','akl','lax','sjc','iad','lon','mrs'],blurb:tr('dark_fiber.elastic_interconnection_now_with')},
 ];
 const FAB=Object.fromEntries(FABS.map(f=>[f.id,f]));
 const NNI=[{n:'10G',g:10,mo:500},{n:'100G',g:100,mo:1200}];
 const VXC=[{n:'10G',g:10,m:1},{n:'50G',g:50,m:2.4},{n:'100G',g:100,m:3.6}];
-const vxcMo=(km,sub,t)=>Math.round((150+km*0.12)*VXC[t].m*(sub?2:1));
+/* Across the sea a fabric resells somebody's subsea capacity: priced off the wave on that route at the dearest market
+   (AU_WAVE.sub), times FAB_SEA, so backhauling from an overseas PoP over Megapork always costs more than leasing
+   the wave yourself, and it does not get cheaper over the years the way waves do. Overland it stays cheap. */
+const FAB_SEA=1.6;
+const vxcMo=(km,sub,t)=>sub?Math.round(waveMo(km,true,0)*AU_WAVE.sub*FAB_SEA*VXC[t].m):Math.round((150+km*0.12)*VXC[t].m);
 const MET={prefer:{l:tr('common.prefer'),f:0.5},normal:{l:tr('common.normal'),f:1},avoid:{l:tr('common.avoid'),f:4},backup:{l:tr('common.backup_only'),f:60}};
 // Custom metrics: a multiplier on the distance cost (f) or an absolute IGP cost (w), capped like an OSPF metric.
 const MET_LIM={f:[0.1,100],w:[1,65535]};

@@ -1,16 +1,16 @@
 // Badge variants by ruleset preset (2.0): On-call earns the standard badge, Change Freeze a frosted one and BGP at
-// 3 a.m. a fiery one; Sandbox and puzzles earn none. A harder preset upgrades a badge you already have.
+// 3 a.m. a fiery one; Sandbox earns none. A harder preset upgrades a badge you already have.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 // The preset is read from S.rules.preset until the ruleset feature lands with rulePreset().
 const start = (ev, preset) => {
-  ev("localStorage.removeItem('sot-badges');ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
+  ev("localStorage.removeItem('sot-badges');ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
   if (preset) ev(`S.rules={preset:'${preset}'}`);
   ev("S.ach={};S.achP={};compute()");
 };
-const earnHello = (ev) => ev("S.pni.push({id:'x',net:'nfx',city:'fra',tier:0});compute();checkBadges()");
+const earnHello = (ev) => ev("S.pni.push({id:'x',net:'nfx',city:'syd',tier:0});compute();checkBadges()");
 const hof = (ev) => JSON.parse(ev("localStorage.getItem('sot-badges')||'{}'"));
 
 test('every save without a preset plays On-call and earns the standard badge', () => {
@@ -42,8 +42,8 @@ test('Change Freeze earns frosted badges and BGP at 3 a.m. fiery ones, shown in 
   }
 });
 
-test('Sandbox and puzzles earn no badges', () => {
-  for (const p of ['sandbox', 'puzzle']) {
+test('Sandbox earns no badges', () => {
+  for (const p of ['sandbox']) {
     const { ev, errors } = load();
     start(ev, p);
     earnHello(ev);

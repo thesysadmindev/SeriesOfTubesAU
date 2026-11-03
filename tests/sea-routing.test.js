@@ -4,11 +4,8 @@ const { load } = require('./harness');
 
 // Check the surveyed part independently against the original coastline segments.
 // City markers may sit inland: their two short shore approaches are excluded.
-// The overland passages (beside the Suez Canal, across Panama) are the only places a surveyed route may cross land.
-// A piece lies on a passage when both its ends sit on the straight line between that passage's two sea cells.
-const onLine = (x, [p, q]) => { const dx = q[0] - p[0], dy = q[1] - p[1], t = ((x[0] - p[0]) * dx + (x[1] - p[1]) * dy) / (dx * dx + dy * dy); return t > -1e-6 && t < 1 + 1e-6 && Math.hypot(p[0] + t * dx - x[0], p[1] + t * dy - x[1]) < 1e-6; };
-const isPass = (a, b, passes) => passes.some(P => onLine(a, P) && onLine(b, P));
-function assertMarine(path, start, end, coast, passes = []) {
+// A surveyed route never crosses land.
+function assertMarine(path, start, end, coast) {
   const at = p => path.findIndex(q => Math.abs(p[0] - q[0]) < 1e-8 && Math.abs(p[1] - q[1]) < 1e-8);
   const first = at(start), last = at(end);
   assert.ok(first >= 0 && last >= first, 'both shore approaches appear in the saved path');
@@ -17,7 +14,6 @@ function assertMarine(path, start, end, coast, passes = []) {
   for (let i = first + 1; i <= last; i++) {
     const a = path[i - 1], b = [...path[i]];
     b[0] += 360 * Math.round((a[0] - b[0]) / 360);
-    if (isPass(path[i - 1], path[i], passes)) continue;
     for (const [p, q] of edges) {
       const shift = 360 * Math.round((a[0] - p[0]) / 360), c = [p[0] + shift, p[1]], d = [q[0] + shift, q[1]];
       assert.ok(!(turn(a, b, c) * turn(a, b, d) < -1e-12 && turn(c, d, a) * turn(c, d, b) < -1e-12),
@@ -30,14 +26,13 @@ test('surveyed designs avoid land, use real path lengths and improve latency', (
   const { ev, dom, errors } = load();
   try {
     const coast = JSON.parse(ev('JSON.stringify(COAST_LL)'));
-    const passes = JSON.parse(ev('JSON.stringify([...seaPasses().entries()].flatMap(([u,L])=>L.map(P=>[seaPoint(u),seaPoint(P.to)])))'));
-    for (const [a, b] of [['lag', 'bde'], ['cbo', 'nyc'], ['lax', 'tok'], ['mrs', 'sin'], ['cai', 'pmo']]) {
+    for (const [a, b] of [['akl', 'tyo'], ['per', 'akl'], ['mel', 'hba'], ['per', 'sin'], ['drw', 'hkg']]) {
       const quotes = JSON.parse(ev(`JSON.stringify(Object.keys(SEA_DESIGNS).map(d=>seaQuote('${a}','${b}',d)))`));
       for (let i = 0; i < quotes.length; i++) {
         const q = quotes[i];
         assert.ok(Number.isFinite(q.km) && q.pts.length > 2);
         // the fastest design may follow the corridor of an existing cable instead, which is drawn as that cable is
-        if (!q.cor) assertMarine(q.pts, ...q.shore, coast, passes);
+        if (!q.cor) assertMarine(q.pts, ...q.shore, coast);
         assert.equal(q.km, ev(`seaLength(${JSON.stringify(q.pts)})`));
         if (i) {
           assert.ok(q.km <= quotes[i - 1].km, 'premium surveys never lengthen the route');
@@ -49,17 +44,11 @@ test('surveyed designs avoid land, use real path lengths and improve latency', (
       assert.equal(reverse.km, quotes[0].km);
       assert.deepEqual(reverse.pts, [...quotes[0].pts].reverse(), 'reverse direction uses the same survey');
     }
-    assert.ok(ev("seaQuote('cai','pmo').km<3000"), 'Cairo approaches the Mediterranean rather than routing out of the Red Sea');
-    assert.equal(ev("cablesFor('cbo','nyc').length"), 0, 'route works without an existing cable');
-    assert.ok(ev("seaQuote('cbo','nyc').km > kmBetween('cbo','nyc')*1.1"), 'the route detours through the Mediterranean');
-    // Europe to Asia crosses Egypt beside the Suez Canal, like real cables, instead of sailing round Africa
-    assert.ok(ev("seaQuote('mrs','sin').km") < 13000, `Marseille–Singapore via Suez (${ev("seaQuote('mrs','sin').km")} km)`);
-    assert.ok(ev("seaQuote('mrs','sin').pts.some(p=>p[0]>31.5&&p[0]<33.5&&p[1]>29.5&&p[1]<31.5)"), 'the route crosses at Suez');
-    assert.equal(JSON.stringify(ev("subNeed(ownCabKm('mrs','sin'))")), '[]', 'no upgrades needed for Marseille–Singapore');
-    // the Caribbean and the Pacific meet across Panama
-    assert.ok(ev("seaQuote('mia','lim').km") < 6000, `Miami–Lima via Panama (${ev("seaQuote('mia','lim').km")} km)`);
-    assert.ok(ev("seaQuote('mia','lim').pts.some(p=>p[0]>-80.5&&p[0]<-79&&p[1]>8.5&&p[1]<9.8)"), 'the route crosses Panama');
-    assert.ok(ev("seaQuote('lax','tok').pts.some((p,i,a)=>i&&Math.abs(p[0]-a[i-1][0])>180)"), 'Pacific route wraps the date line');
+    assert.equal(ev("cablesFor('per','akl').length"), 0, 'route works without an existing cable');
+    assert.ok(ev("seaQuote('per','akl').km > kmBetween('per','akl')*1.03"), 'the route goes round the continent, not across it');
+    // Perth to Sydney sails round the south coast, through the Great Australian Bight
+    assert.ok(ev("seaQuote('per','syd').pts.some(p=>p[1]<-35&&p[0]>125&&p[0]<135)"), 'the route crosses the Bight');
+    assert.equal(JSON.stringify(ev("subNeed(ownCabKm('per','sin'))")), '[]', 'no upgrades needed for Perth–Singapore');
     assert.deepEqual(errors, []);
   } finally { dom.window.close(); }
 });
@@ -67,22 +56,24 @@ test('surveyed designs avoid land, use real path lengths and improve latency', (
 test('grid edges and smoothing cannot jump across a thin island', () => {
   const { ev, dom } = load();
   try {
-    ev('COAST_LL.length=0;COAST_LL.push([[0.09,-0.1],[0.16,-0.1],[0.16,0.1],[0.09,0.1]])');
-    assert.equal(ev('seaLand(0,0)||seaLand(0.25,0)'), false, 'both grid endpoints are water');
-    assert.equal(ev('seaClear([0,0],[0.25,0])'), false, 'exact coastline check catches the island between them');
-    assert.equal(ev('seaStep(320*1440+720,1,0)'), false, 'the grid step also catches it');
-    assert.equal(ev('seaClear([0,-0.25],[0.25,-0.25])'), true, 'open water remains traversable');
+    // A thin island at 150°E on the equator, inside the grid, between two cells a quarter degree apart.
+    ev('COAST_LL.length=0;COAST_LL.push([[150.09,-0.1],[150.16,-0.1],[150.16,0.1],[150.09,0.1]])');
+    assert.equal(ev('seaLand(150,0)||seaLand(150.25,0)'), false, 'both grid endpoints are water');
+    assert.equal(ev('seaClear([150,0],[150.25,0])'), false, 'exact coastline check catches the island between them');
+    assert.deepEqual(JSON.parse(ev('JSON.stringify(seaPoint(seaRow(0)*SEA_NAV.nx+seaCol(150)))')), [150, 0]);
+    assert.equal(ev('seaStep(seaRow(0)*SEA_NAV.nx+seaCol(150),1,0)'), false, 'the grid step also catches it');
+    assert.equal(ev('seaClear([150,-0.25],[150.25,-0.25])'), true, 'open water remains traversable');
   } finally { dom.window.close(); }
 });
 
 test('orders, previews, saved paths and map geometry agree; legacy cables retain their values', () => {
   const { ev, dom, errors } = load();
   try {
-    ev("ACT.start({});S.cash=1e11;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;for(const city of ['lag','bde'])ACT.buildPop({city});UI.lmode='df';UI.dfSrc='cable';openLinkModal('lag','bde')");
+    ev("ACT.start({});S.cash=1e11;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;for(const city of ['akl','tyo'])ACT.buildPop({city});UI.lmode='df';UI.dfSrc='cable';openLinkModal('akl','tyo')");
     for (const design of ['standard', 'optimized', 'express']) {
-      const q = JSON.parse(ev(`JSON.stringify(seaQuote('lag','bde','${design}'))`));
+      const q = JSON.parse(ev(`JSON.stringify(seaQuote('akl','tyo','${design}'))`));
       assert.ok(dom.window.document.getElementById('modalCard').textContent.includes(q.ms.toFixed(1) + ' ms one-way'));
-      ev(`UI.pending={a:'lag',b:'bde'};UI.seaDesign='${design}';ACT.orderCable()`);
+      ev(`UI.pending={a:'akl',b:'tyo'};UI.seaDesign='${design}';ACT.orderCable()`);
       const l = JSON.parse(ev('JSON.stringify(S.links.at(-1))'));
       assert.deepEqual(l.seaPath, q.pts);
       assert.equal(l.km, q.km);
@@ -92,10 +83,10 @@ test('orders, previews, saved paths and map geometry agree; legacy cables retain
       ev('S=migrate(JSON.parse(JSON.stringify(S)));GEO.clear()');
       assert.deepEqual(JSON.parse(ev('JSON.stringify(S.links.at(-1).seaPath)')), q.pts);
       assert.deepEqual(JSON.parse(ev('JSON.stringify(linkGeom(S.links.at(-1)).pts)')),
-        JSON.parse(ev('JSON.stringify(seaMapPoints(S.links.at(-1).seaPath))')));
-      ev("UI.dfSrc='cable';openLinkModal('lag','bde')");
+        JSON.parse(ev("JSON.stringify(seaMapPoints(S.links.at(-1).seaPath,'akl','tyo'))")));
+      ev("UI.dfSrc='cable';openLinkModal('akl','tyo')");
     }
-    ev("S.links.push({id:'legacy',a:'lag',b:'bde',kind:'df',own:true,sub:true,seaDesign:'optimized',sys:'roadm',km:7515,ch:[],ready:0,mo:1,cut:0});S=migrate(JSON.parse(JSON.stringify(S)))");
+    ev("S.links.push({id:'legacy',a:'akl',b:'tyo',kind:'df',own:true,sub:true,seaDesign:'optimized',sys:'roadm',km:7515,ch:[],ready:0,mo:1,cut:0});S=migrate(JSON.parse(JSON.stringify(S)))");
     assert.equal(ev('S.links.at(-1).seaPath'), undefined);
     assert.equal(ev('S.links.at(-1).km'), 7515);
     assert.equal(ev('linkLat(S.links.at(-1))'), 37.575);
@@ -105,11 +96,28 @@ test('orders, previews, saved paths and map geometry agree; legacy cables retain
   } finally { dom.window.close(); }
 });
 
+test('your own cable is drawn right up to both cities, even one drawn nudged off its spot', () => {
+  const { ev, dom, errors } = load();
+  try {
+    // Sydney is drawn a few pixels off its real spot (CITY_NUDGE), which deep zoom makes a wide gap.
+    assert.notDeepEqual(JSON.parse(ev('JSON.stringify(CITY_NUDGE.syd)')), [0, 0]);
+    const path = JSON.stringify(ev("JSON.stringify(seaRoutes('syd','akl')[0].pts)"));
+    for (const [a, b] of [['syd', 'akl'], ['akl', 'syd']]) {
+      ev(`ACT.start({});S.links.push({id:'own',a:'${a}',b:'${b}',kind:'df',own:true,sub:true,seaDesign:'standard',seaPath:JSON.parse(${path}),sys:'roadm',km:2200,ch:[],ready:0,mo:1,cut:0});GEO.clear()`);
+      const g = JSON.parse(ev("JSON.stringify(linkGeom(S.links.find(l=>l.id==='own')).pts)"));
+      const at = (p, c) => Math.hypot(p[0] - ev(`CITY.${c}.x`), p[1] - ev(`CITY.${c}.y`));
+      const [s, e] = [g[0], g[g.length - 1]];
+      assert.ok(Math.min(at(s, 'syd') + at(e, 'akl'), at(s, 'akl') + at(e, 'syd')) < 1e-6, `${a}–${b}: the line starts and ends at the cities as drawn`);
+    }
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
 test('failed surveys refuse construction instead of falling back to a line through land', () => {
   const { ev, dom } = load();
   try {
-    ev("ACT.start({});S.cash=1e11;S.won=true;SEA_NAV.routes.set('bde|lag',[]);UI.pending={a:'lag',b:'bde'}");
-    assert.match(ev("ownCabWhy('lag','bde')"), /No navigable sea route/);
+    ev("ACT.start({});S.cash=1e11;S.won=true;SEA_NAV.routes.set('akl|tyo',[]);UI.pending={a:'akl',b:'tyo'}");
+    assert.match(ev("ownCabWhy('akl','tyo')"), /No navigable sea route/);
     const count = ev('S.links.length'), cash = ev('S.cash');
     ev('ACT.orderCable()');
     assert.equal(ev('S.links.length'), count);
@@ -122,38 +130,47 @@ test('background surveys deduplicate requests and do not replace a later dialog'
   try {
     ev(`window.Worker=class{constructor(){window.surveyWorker=this;this.requests=[];}postMessage(m){this.requests.push(m);}terminate(){}};
       URL.createObjectURL=()=> 'blob:test';URL.revokeObjectURL=()=>{};
-      ACT.start({});S.won=true;S.cash=1e11;UI.lmode='df';UI.dfSrc='cable';openLinkModal('lag','bde');`);
+      ACT.start({});S.won=true;S.cash=1e11;UI.lmode='df';UI.dfSrc='cable';openLinkModal('akl','tyo');`);
     assert.match(dom.window.document.getElementById('modalCard').textContent, /Surveying a sea route/);
-    ev("ownCabWhy('bde','lag')");
+    ev("ownCabWhy('tyo','akl')");
     assert.equal(ev('surveyWorker.requests.length'), 1, 'reverse-direction requests share a job');
-    ev("openModal('<p id=otherDialog>Another dialog</p>');surveyWorker.onmessage({data:{key:'bde|lag',routes:[]}})");
+    ev("openModal('<p id=otherDialog>Another dialog</p>');surveyWorker.onmessage({data:{key:'akl|tyo',routes:[]}})");
     assert.ok(dom.window.document.getElementById('otherDialog'), 'a completed survey cannot reopen a stale build dialog');
     assert.equal(ev('SEA_SURVEY.pending.size'), 0);
   } finally { dom.window.close(); }
 });
 
-test('the fastest design is as fast as the fastest cable, and the Red Sea Crisis closes Suez', () => {
+test('the fastest design is as fast as the fastest cable', () => {
   const { ev, errors, dom } = load();
   try {
     // where a cable already runs, the low-latency design follows its corridor if that is shorter than its own survey
-    for (const [a, b] of [['lon', 'nyc'], ['hfx', 'lon']]) {
+    for (const [a, b] of [['mel', 'hba'], ['syd', 'akl'], ['syd', 'sin']]) {
       const best = ev(`Math.min(...cablesFor('${a}','${b}').map(c=>linkLat({kind:'wave',km:c.km,cable:c.cid})))`);
       const q = JSON.parse(ev(`JSON.stringify(seaQuote('${a}','${b}','express'))`));
       assert.ok(q.ms <= best + 1e-9, `${a}–${b}: ${q.ms.toFixed(2)} ms against ${best.toFixed(2)} ms`);
       assert.equal(q.km, ev(`seaLength(${JSON.stringify(q.pts)})`), 'map and price use the same path');
     }
     // and where the existing cable takes a detour, the survey beats it
-    assert.ok(ev("seaQuote('lag','bde','express').ms") < ev("Math.min(...cablesFor('lag','bde').map(c=>linkLat({kind:'wave',km:c.km,cable:c.cid})))"));
-    // the crisis shuts the canal for your own cables too, and the cache keeps the two cases apart
-    const open = ev("seaQuote('mrs','sin').km");
-    ev("ACT.startScn({id:'redsea',sure:1})");
-    const shut = ev("seaQuote('mrs','sin').km");
-    assert.ok(shut > open + 5000, `round Africa in the crisis (${shut} km against ${open} km)`);
-    assert.ok(ev("seaQuote('mrs','sin','express').km") > open + 5000, 'the fastest design cannot borrow a cut cable');
-    assert.ok(ev("seaQuote('mrs','sin').pts.some(p=>p[0]>-7&&p[0]<-4&&p[1]>35&&p[1]<37)"), 'out through Gibraltar');
-    ev("ACT.start({})");
-    assert.equal(ev("seaQuote('mrs','sin').km"), open, 'back to Suez in a normal game');
+    assert.ok(ev("seaQuote('per','syd','express').ms") < ev("Math.min(...cablesFor('per','syd').map(c=>linkLat({kind:'wave',km:c.km,cable:c.cid})))"));
     assert.deepEqual(errors, []);
   } finally { dom.window.close(); }
 });
-
+test('the survey grid covers the map and its gateways, not the globe, and crosses the date line', () => {
+  const { ev, errors, dom } = load();
+  try {
+    assert.ok(ev('SEA_NAV.nx*SEA_NAV.ny') < 300000, 'a box round Australia and the Pacific, not 360° × 160°');
+    // Every landing city is inside, with room for the 16 cells a port search reaches, except the far ends of the long
+    // cables (Oman, Europe, the US east coast): those are reached on the cables already there, never your own.
+    const out = JSON.parse(ev("JSON.stringify(CITIES.filter(c=>landing(c.id)).filter(c=>{const x=seaCol(c.lon),y=seaRow(c.lat);return x<16||x>=SEA_NAV.nx-16||y<16||y>=SEA_NAV.ny-16;}).map(c=>c.id).sort())"));
+    assert.deepEqual(out, ['iad', 'lon', 'mct', 'mrs'], 'landing cities near the edge');
+    ev("ACT.start({});S.won=true");
+    assert.match(ev("ownCabWhy('per','mct')"), /beyond the survey area/, 'no own cable to Oman');
+    assert.equal(ev('seaWater(-1,100)||seaWater(SEA_NAV.nx,100)||seaWater(100,-1)||seaWater(100,SEA_NAV.ny)'), false, 'nothing outside the box is sea');
+    // San Jose and Los Angeles lie past 180°: routes there still find water, from either side.
+    for (const [a, b] of [['syd', 'sjc'], ['tyo', 'lax'], ['akl', 'lax']]) {
+      const r = JSON.parse(ev(`JSON.stringify(seaRoutes('${a}','${b}').map(x=>x.km))`));
+      assert.ok(r.length && r.every((km) => km > ev(`kmBetween('${a}','${b}')`) * 0.99), `${a}–${b}: ${r}`);
+    }
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});

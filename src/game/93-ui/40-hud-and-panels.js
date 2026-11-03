@@ -2,13 +2,11 @@ function fitHud(){const h=$('hud');if(!h)return;h.classList.remove('fit1','fit2'
   const row=()=>{let m=0;for(const c of h.children)if(c.offsetParent)m=Math.max(m,c.offsetHeight);return m;};
   for(const c of ['fit1','fit2','fit3']){if(h.offsetHeight<=row()*1.5)break;h.classList.add(c);}}
 function renderHUD(){
-  // No clock (puzzles): there is no time to speed up, so the speed buttons go.
-  {const ck=!S||rule('clock');for(const v of [0,0.5,1,2,4,8]){const b=$('sp'+v);if(b){b.classList.toggle('on',UI.speed===v);b.hidden=!ck;}}}
+  for(const v of [0,0.5,1,2,4,8]){const b=$('sp'+v);if(b)b.classList.toggle('on',UI.speed===v);}
   $('muteBtn').style.opacity=UI.muted?.4:1;
   if(!S)return;
-  if(pzOn()){$('hName').textContent=pzName(pzDef(S.pz.id)||S.pz);$('hAsn').textContent=tr('puzzles.puzzle');renderTabbar();return;}
   {const rt=ruleTag(),ha=$('hAsn');ha.title=rt?tr('rules.rules_are_locked_for_this_network',{rules:rt}):'';}
-  $('hName').textContent=S.name;$('hAsn').textContent='AS'+S.asn+(S.mode==='sandbox'||ruleTag()&&!S.scn?' · '+ruleTag():S.scn?' · '+(scnName())+(S.scn.done||S.scn.failed?'':` · ${tr('ui.n_d_left',{n:Math.max(0,S.scn.days-S.day)})}`):'');
+  $('hName').textContent=S.name;$('hAsn').textContent='AS'+S.asn+(S.mode==='sandbox'||ruleTag()?' · '+ruleTag():'');
   $('hCash').textContent=fmt$(S.cash);$('hCash').style.color=S.cash<0?'var(--bad)':'';
   const net=R.revMo-R.costMo;$('hRate').innerHTML=`<span class="${net>=0?'up':'down'}">${net>=0?'▲':'▼'} ${tr('common.price_mo',{price:fmt$(Math.abs(net))})}</span>`;
   $('hTraffic').textContent=`${fmtG(R.served)}`;
@@ -16,7 +14,6 @@ function renderHUD(){
   $('hTrafBar').style.background=R.demand&&R.served/R.demand<0.9?'var(--bad)':'var(--ok)';
   $('hReach').textContent=reachPct(R.reach);$('hReach').style.color=R.reach<0.99?'var(--bad)':'var(--eye)';
   $('hTier').textContent=tierLabel()+' · '+tr('hud_and_panels.lv_n',{n:S.lvl||1});
-  {const P=scnProg(),hs=$('hScn');hs.hidden=!P;if(P){const sc=S.scn;$('hScnVal').textContent=sc.done?tr('common.done'):sc.failed?tr('common.time_s_up'):`${Math.round(P.f*100)}% · ${tr('ui.n_d_left',{n:Math.max(0,sc.days-S.day)})}`;}}
   $('hDate').textContent=dateStr(S.day);
   {const bo=(S.loanOffers||[]).length,hb=$('hBank');hb.hidden=!bo;hb.textContent=bo;}
   {const st=custStats(),hc=$('hCust');hc.hidden=!st.n;if(st.n){$('hCustVal').innerHTML=`${st.avg>=80?'😀':st.avg>=60?'🙂':st.avg>=30?'😟':'😡'} ${Math.round(st.avg)}%${st.unhappy?` <span class="cnt red">${st.unhappy}</span>`:''}`;hc.classList.toggle('hot',st.furious>0);}}
@@ -29,13 +26,13 @@ function renderLeft(){checkLayer();
   // while a city or link is open and comes back with the toggle button.
   const tab=isTablet(),L=$('left');L.classList.toggle('closed',tab?(!!UI.sel&&!UI.leftOpen):!UI.leftOpen);const tg=$('leftToggle');if(tg&&innerWidth>760)tg.hidden=!(tab&&L.classList.contains('closed'));
   renderTabbar();
-  if(!S||pzOn()){L.hidden=true;return;}L.hidden=false;
+  if(!S){L.hidden=true;return;}L.hidden=false;
   const ndone=GOALS.filter(g=>S.done[g.id]!==undefined).length;
   const tabs=[['goals',`${tr('common.goals')}<span class="cnt">${ndone}/${GOALS.length}</span>`],['deals',`${tr('common.deals')}${S.offers.length?`<span class="cnt">${S.offers.length}</span>`:''}`],['noc',`NOC${S.inc.length?`<span class="cnt red dot" aria-hidden="true"></span>`:''}`],['nets',tr('common.networks')]];
   $('leftTabs').innerHTML=tabs.map(([k,l])=>`<button class="${UI.left===k?'on':''}" data-act="leftTab" data-args='{"t":"${k}"}'>${l}</button>`).join('')+(innerWidth<760?`<button data-act="toggleLeft" style="margin-left:auto" aria-label="${tr('common.close')}">×</button>`:'');
   let h='';
   if(UI.left==='goals'){
-    h+=charterCard()+scnCard()+lvlCard()+t1Card();
+    h+=charterCard()+lvlCard()+t1Card();
     const cur=GOALS.find(g=>S.done[g.id]===undefined);
     h+=GOALS.map(g=>{const d=S.done[g.id]!==undefined,c=g===cur;return `<div class="goal ${d?'done':''} ${c?'cur':''}"><div class="ck">${d?'✓':''}</div><div><div class="gt">${esc(g.t)}</div>${c||!d?`<div class="gd">${esc(g.d)}</div>`:''}${!d&&g.r?`<div class="gr">${tr('hud_and_panels.reward_cash',{cash:fmt$(g.r)})}</div>`:''}</div></div>`;}).join('');
     h+=badgeGrid();
@@ -92,6 +89,6 @@ function renderPanel(){checkLayer();
   // Don't wipe a half-typed custom metric on the daily re-render.
   const fe=document.activeElement;if(fe&&fe.id==='metIn'&&UI.sel.type!=='city'&&fe.dataset.id===UI.sel.id)return;
   const scrollEl=$('panelBody').querySelector('.scroll');const st=scrollEl?scrollEl.scrollTop:0;
-  const html=pzOn()?pzPanel(UI.sel):UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(!html){P.hidden=true;return;}if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
+  const html=UI.sel.type==='city'?cityPanel(UI.sel.id):linkPanel(UI.sel.id);if(!html){P.hidden=true;return;}if(html===UI._ph&&!P.hidden&&$('panelBody').firstChild)return;UI._ph=html;morph($('panelBody'),html);
   const ns=$('panelBody').querySelector('.scroll');if(ns)ns.scrollTop=st;
 }

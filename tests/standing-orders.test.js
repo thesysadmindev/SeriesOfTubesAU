@@ -4,7 +4,7 @@ const { load } = require('./harness');
 
 // A small network with a hired intern, every order off, no cash floor and no fat fingers (Change Freeze).
 const BASE = "ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.lvl=3;S.nextFail=S.nextEvent=1e9;UI.speed=0;S.rules=makeRules('freeze');" +
-  "ACT.launchBB({city:'fra'});S.pops.fra.bb.d=300;S.pops.fra.rgen=1;ACT.buyTransit({city:'fra',net:'cog',tier:1});compute()";
+  "ACT.launchBB({city:'syd'});S.pops.syd.bb.d=300;S.pops.syd.rgen=1;ACT.buyTransit({city:'syd',net:'cog',tier:1});compute()";
 function game(t, extra = '') {
   const h = load();
   t.after(() => h.dom.window.close());
@@ -63,31 +63,31 @@ test('transit headroom adds a LAG member, exactly as the + member button would',
   const A = twins(t, "S.transit[0].hist=[60,80,70]",
     ev => on(ev, 'transit', { x: 1.5 }),
     "ACT.lagT({id:S.transit[0].id,d:1})", "JSON.stringify(S.transit.map(t=>[t.net,t.tier,t.n||1]))");
-  assert.match(A.ev('opsEntry(S.ops.log[0])'), /Kevin topped up transit in Frankfurt \+1×100G/);
+  assert.match(A.ev('opsEntry(S.ops.log[0])'), /Kevin topped up transit in Sydney \+1×100G/);
 });
 
 test('transit headroom buys a new port from a chosen provider and stops at the multiple', t => {
   const A = twins(t, "S.transit[0].hist=[100]",
     ev => on(ev, 'transit', { x: 2, prov: 'ntt' }),
-    "ACT.buyTransit({city:'fra',net:'ntt',tier:1})", "JSON.stringify(S.transit.map(t=>[t.net,t.tier,t.n||1]))");
+    "ACT.buyTransit({city:'syd',net:'ntt',tier:1})", "JSON.stringify(S.transit.map(t=>[t.net,t.tier,t.n||1]))");
   assert.ok(A.ev("S.transit.reduce((a,t)=>a+lagCap(PORT[t.tier].g,t.n),0)") >= 200);
 });
 
 test('routers: add one above the load level, as Add router would', t => {
-  twins(t, "R.nodeLoad.fra=R.nodeCap.fra*0.85",
+  twins(t, "R.nodeLoad.syd=R.nodeCap.syd*0.85",
     ev => on(ev, 'routers', { at: 80, how: 'add' }),
-    "ACT.addRouter({city:'fra'})", 'S.pops.fra.routers');
+    "ACT.addRouter({city:'syd'})", 'S.pops.syd.routers');
 });
 
 test('routers: swap generation only where a second router carries the traffic', t => {
-  const { ev, errors } = game(t, 'R.nodeLoad.fra=R.nodeCap.fra*0.95');
+  const { ev, errors } = game(t, 'R.nodeLoad.syd=R.nodeCap.syd*0.95');
   hire(ev); on(ev, 'routers', { at: 80, how: 'swap' });
   shift(ev);
-  assert.equal(ev('S.pops.fra.rgen'), 1, 'one router: a swap would be an outage, so no');
-  ev('S.pops.fra.routers=2;compute();R.nodeLoad.fra=R.nodeCap.fra*0.95');
-  const want = ev('swapCost("fra",mainRG(RG[1].cls+1))'), c0 = cash(ev);
+  assert.equal(ev('S.pops.syd.rgen'), 1, 'one router: a swap would be an outage, so no');
+  ev('S.pops.syd.routers=2;compute();R.nodeLoad.syd=R.nodeCap.syd*0.95');
+  const want = ev('swapCost("syd",mainRG(RG[1].cls+1))'), c0 = cash(ev);
   shift(ev);
-  assert.equal(ev('S.pops.fra.rgen'), ev('mainRG(RG[1].cls+1)'));
+  assert.equal(ev('S.pops.syd.rgen'), ev('mainRG(RG[1].cls+1)'));
   assert.equal(c0 - cash(ev), want, 'paid the swap price after trade-in');
   assert.equal(ev("S.inc.some(i=>i.type==='maint')"), false);
   assert.deepEqual(errors, []);
@@ -96,22 +96,22 @@ test('routers: swap generation only where a second router carries the traffic', 
 test('caches: free boxes only once the network sends enough traffic locally', t => {
   const { ev, errors } = game(t);
   hire(ev);
-  const best = ev("NETS.filter(n=>n.cache&&(R.demTo[n.id]||0)>=n.cache.min).map(n=>(R.cityDem.fra||0)*NSH[n.id]).sort((a,b)=>b-a)[0]||0");
+  const best = ev("NETS.filter(n=>n.cache&&(R.demTo[n.id]||0)>=n.cache.min).map(n=>(R.cityDem.syd||0)*NSH[n.id]).sort((a,b)=>b-a)[0]||0");
   assert.ok(best > 0, 'some network qualifies for a cache in this game');
   on(ev, 'caches', { g: 50 });
   if (best < 50) { shift(ev); assert.equal(ev('S.caches.length'), 0, 'below the threshold: nothing'); }
   on(ev, 'caches', { g: 1 });
   const c0 = cash(ev);
   shift(ev);
-  const want = JSON.parse(ev("JSON.stringify(utilityCaches('fra'))"));
+  const want = JSON.parse(ev("JSON.stringify(utilityCaches('syd'))"));
   assert.ok(ev('S.caches.length') > 0);
-  assert.equal(want.add.filter(x => ev(`(R.cityDem.fra||0)*NSH['${x.net}']`) >= 1).length, 0, 'every eligible box is in');
+  assert.equal(want.add.filter(x => ev(`(R.cityDem.syd||0)*NSH['${x.net}']`) >= 1).length, 0, 'every eligible box is in');
   assert.equal(cash(ev), c0, 'caches are free to rack');
   assert.deepEqual(errors, []);
 });
 
 test('IX: weekly route servers and every willing peer, the same as the #192 batch', t => {
-  const A = game(t, "ACT.buyIx({city:'fra',tier:0,signed:true});ACT.buyIx({city:'ams',tier:0})"), B = game(t, "ACT.buyIx({city:'fra',tier:0,signed:true});ACT.buyIx({city:'ams',tier:0})");
+  const A = game(t, "ACT.buyIx({city:'syd',tier:0});ACT.buyIx({city:'mel',tier:0})"), B = game(t, "ACT.buyIx({city:'syd',tier:0});ACT.buyIx({city:'mel',tier:0})");
   hire(A.ev); on(A.ev, 'ix');
   A.ev('S.day=13');shift(A.ev);
   assert.equal(A.ev('Object.keys(S.rs).length'), 0, 'not on a weekday the intern skips');
@@ -124,9 +124,9 @@ test('IX: weekly route servers and every willing peer, the same as the #192 batc
 });
 
 test('PNI: weekly, big enough networks only, paid peering left out by default, at each network\'s own size and lead time', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;compute()");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;compute()");
   hire(ev); on(ev, 'pni', { g: 5, tier: 1 }, 0);
-  ev('S.day=17;S.pops.fra.bb.d=3000;S.pops.ams.bb={d:3000};compute()');
+  ev('S.day=17;S.pops.syd.bb.d=3000;S.pops.mel.bb={d:3000};compute()');
   const plan = JSON.parse(ev("JSON.stringify(pniBatch(null,1).orders.filter(q=>pniVal(q.net,q.city).want>=5&&(NET[q.net].pol!=='paid'||paidFree(NET[q.net]))).map(q=>({k:q.city+q.net,cost:q.cost,tier:q.tier,big:pniBig(q.net)})))"));
   assert.ok(plan.length > 0);
   const c0 = cash(ev);
@@ -143,8 +143,8 @@ test('PNI: weekly, big enough networks only, paid peering left out by default, a
 test('sales: decline offers below the minimum, sign the ready ones with #185\'s trial', t => {
   const { ev, errors } = game(t);
   hire(ev); on(ev, 'sales', { acc: true, min: 5000 });
-  ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
-  ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:30},{id:'gen',city:'fra',name:'Gen',type:'dia',bw:10,rate:600,reqs:['gen'],exp:30}]");
+  ev('S.transit[0].tier=3;S.pops.syd.rgen=3;compute()');
+  ev("S.offers=[{id:'tiny',city:'syd',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30},{id:'big',city:'syd',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:30},{id:'gen',city:'syd',name:'Gen',type:'dia',bw:10,rate:600,reqs:['gen'],exp:30}]");
   shift(ev);
   assert.deepEqual(JSON.parse(ev('JSON.stringify(S.biz.map(b=>b.id))')), ['big']);
   assert.deepEqual(JSON.parse(ev('JSON.stringify(S.offers.map(o=>o.id))')), ['gen'], 'unmet requirements wait, the tiny one is gone');
@@ -153,25 +153,25 @@ test('sales: decline offers below the minimum, sign the ready ones with #185\'s 
 });
 
 test('repairs: rush what has a price, as the Rush repair button would', t => {
-  twins(t, "S.links=[{id:'f',a:'fra',b:'ams',kind:'df',sys:'lite',ch:['zr4'],km:450,sub:false,ready:0,cut:0,eqDown:10,mo:1}];S.inc=[{id:'amp',type:'amp',ref:'f',until:10,cost:3000,msg:'amp'}];S.pops.ams={day:0,bb:null,boost:0,down:0,routers:1,gen:false}",
+  twins(t, "S.links=[{id:'f',a:'syd',b:'mel',kind:'df',sys:'lite',ch:['zr4'],km:450,sub:false,ready:0,cut:0,eqDown:10,mo:1}];S.inc=[{id:'amp',type:'amp',ref:'f',until:10,cost:3000,msg:'amp'}];S.pops.mel={day:0,bb:null,boost:0,down:0,routers:1,gen:false}",
     ev => on(ev, 'repair'), "ACT.fixInc({id:'amp'})", 'S.inc.length');
 });
 
 test('optics: light hot fiber with the optic already in it, at the #177 batch price', t => {
-  const extra = "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;S.links.push({id:'f',a:'fra',b:'ams',kind:'df',sys:'lite',ch:['zr4'],km:450,sub:false,ready:0,cut:0,mo:1,trench:'f'});compute();R.load.f=dfCap(S.links.at(-1))*0.95";
+  const extra = "ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;S.links.push({id:'f',a:'syd',b:'mel',kind:'df',sys:'lite',ch:['zr4'],km:450,sub:false,ready:0,cut:0,mo:1,trench:'f'});compute();R.load.f=dfCap(S.links.at(-1))*0.95";
   const A = twins(t, extra, ev => on(ev, 'optics', { at: 70 }),
     "ACT.setChCount({id:'f',o:'zr4',n:2})", "JSON.stringify(S.links.find(l=>l.id==='f').ch)");
   assert.equal(A.ev("S.links.find(l=>l.id==='f').ch.length"), 2, 'one more channel brings the fiber under the level');
 });
 
 test('decommission: smaller parallel waves go once the bigger link has room, never one a customer needs', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier] of [['w1',0],['w2',0],['big',2]])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:450,sub:false,cut:0,mo:100,trench:id});compute()");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;for(const [id,tier] of [['w1',0],['w2',0],['big',2]])S.links.push({id,a:'syd',b:'mel',kind:'wave',tier,km:450,sub:false,cut:0,mo:100,trench:id});compute()");
   hire(ev); on(ev, 'decom', { keep: true });
   ev("R.load={w1:1,w2:1,big:10}");
   shift(ev);
   assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['big', 'w1'], 'one small wave kept as a spare');
   on(ev, 'decom', { keep: false });
-  ev("S.biz.push({id:'c',name:'C',type:'l2vpn',city:'fra',city2:'ams',bw:1,rate:1,reqs:['diverse'],mood:100,since:0});R.load={w1:1,big:10}");
+  ev("S.biz.push({id:'c',name:'C',type:'l2vpn',city:'syd',city2:'mel',bw:1,rate:1,reqs:['diverse'],mood:100,since:0});R.load={w1:1,big:10}");
   shift(ev);
   assert.ok(ev("S.links.some(l=>l.id==='w1')"), 'a diverse-path customer still needs it');
   ev("S.biz=[];R.load={w1:1,big:10}");
@@ -205,20 +205,20 @@ test('the monthly budget cap and the cash floor stop the intern; a new month res
 });
 
 test('pause: an order switched off does nothing, and per-POP switches leave a city alone', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});ACT.buyTransit({city:'ams',net:'cog',tier:1});for(const t of S.transit)t.hist=[90]");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});ACT.buyTransit({city:'mel',net:'tsy',tier:1});for(const t of S.transit)t.hist=[90]");
   hire(ev); on(ev, 'transit', { x: 2 });
   ev("ACT.opsToggle({k:'transit'})");
   const s0 = ev('JSON.stringify(S.transit)');
   shift(ev);
   assert.equal(ev('JSON.stringify(S.transit)'), s0);
-  ev("ACT.opsToggle({k:'transit'});ACT.opsPop({k:'transit',city:'ams'});closeModal()");
+  ev("ACT.opsToggle({k:'transit'});ACT.opsPop({k:'transit',city:'mel'});closeModal()");
   shift(ev);
-  assert.ok(ev("(S.transit.find(t=>t.city==='fra').n||1)") > 1, 'Frankfurt topped up');
-  assert.equal(ev("(S.transit.find(t=>t.city==='ams').n||1)"), 1, 'Amsterdam left alone');
+  assert.ok(ev("(S.transit.find(t=>t.city==='syd').n||1)") > 1, 'Sydney topped up');
+  assert.equal(ev("(S.transit.find(t=>t.city==='mel').n||1)"), 1, 'Melbourne left alone');
   assert.deepEqual(errors, []);
 });
 
-test('the shift runs inside dayTick, respects a stopped clock, batches its work and recomputes once', t => {
+test('the shift runs inside dayTick, batches its work and recomputes once', t => {
   const { ev, errors } = game(t, "S.transit[0].hist=[60,80,70]");
   hire(ev); on(ev, 'transit', { x: 1.5 }); on(ev, 'caches', { g: 1 });
   const n = ev("window.__c=compute;window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n");
@@ -226,8 +226,6 @@ test('the shift runs inside dayTick, respects a stopped clock, batches its work 
   const d = ev('S.day');
   ev('dayTick()');
   assert.equal(ev('S.ops.log[0].d'), d + 1);
-  ev("S.rules.clock=false;const before=JSON.stringify(S.ops);dayTick();window.__same=before===JSON.stringify(S.ops)");
-  assert.equal(ev('__same'), true, 'no clock, no shift');
   assert.deepEqual(errors, []);
 });
 
@@ -235,10 +233,10 @@ test('the NOC gets one notice a week, the shift report; the daily lines stay in 
   const { ev, errors } = game(t, "S.transit[0].hist=[600]");
   ev('S.day=14');
   hire(ev); on(ev, 'transit', { x: 1.5 }); on(ev, 'sales', { acc: true, min: 5000 });
-  ev('S.transit[0].tier=3;S.pops.fra.rgen=3;compute()');
+  ev('S.transit[0].tier=3;S.pops.syd.rgen=3;compute()');
   const n0 = ev('S.log.length');
   for (let d = 14; d < 21; d++) {
-    if (d === 15) ev("S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:60},{id:'big',city:'fra',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:60}]");
+    if (d === 15) ev("S.offers=[{id:'tiny',city:'syd',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:60},{id:'big',city:'syd',name:'Big',type:'dia',bw:10,rate:600,reqs:[],exp:60}]");
     ev(`S.day=${d}`); shift(ev);
   }
   assert.equal(ev('S.log.length'), n0, 'a whole week of shifts: no NOC notice yet');
@@ -250,7 +248,7 @@ test('the NOC gets one notice a week, the shift report; the daily lines stay in 
   ev('S.day=22'); shift(ev);
   assert.equal(ev('S.log.length'), n0 + 1, 'and nothing more until the next week ends');
   // Only the sales order now: one tiny offer declined on day 23, reported when the week ends.
-  ev("for(const k in S.ops.on)S.ops.on[k]=false;S.ops.on.sales=true;S.offers=[{id:'t2',city:'fra',name:'T2',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=23");shift(ev);
+  ev("for(const k in S.ops.on)S.ops.on[k]=false;S.ops.on.sales=true;S.offers=[{id:'t2',city:'syd',name:'T2',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=23");shift(ev);
   ev("S.day=28");shift(ev);
   assert.equal(ev('S.log.length'), n0 + 2);
   assert.match(ev('S.log[0].t'), /declined a tiny offer\.$/, 'nothing spent: no money line');
@@ -316,16 +314,16 @@ test('fat fingers: never under Change Freeze, rare and harmless in On-call and B
 test('a new POP from the template costs exactly the clicks it replaces', t => {
   const A = game(t), B = game(t);
   hire(A.ev); hire(B.ev);
-  const q = JSON.parse(A.ev("JSON.stringify(opsTplQuote('ams'))"));
+  const q = JSON.parse(A.ev("JSON.stringify(opsTplQuote('mel'))"));
   assert.ok(q.net && q.ix && q.kit);
-  const a0 = cash(A.ev); A.ev("ACT.opsNewPop({city:'ams'})"); const a1 = cash(A.ev);
+  const a0 = cash(A.ev); A.ev("ACT.opsNewPop({city:'mel'})"); const a1 = cash(A.ev);
   const b0 = cash(B.ev);
-  B.ev(`ACT.buildPop({city:'ams'});ACT.launchBB({city:'ams'});ACT.buyTransit({city:'ams',net:'${q.net}',tier:0});ACT.buyIx({city:'ams',tier:0});ACT.utilityKit({city:'ams',cost:utilityKit('ams').cost})`);
+  B.ev(`ACT.buildPop({city:'mel'});ACT.launchBB({city:'mel'});ACT.buyTransit({city:'mel',net:'${q.net}',tier:0});ACT.buyIx({city:'mel',tier:0});ACT.utilityKit({city:'mel',cost:utilityKit('mel').cost})`);
   assert.equal(a0 - a1, q.cost, 'the quoted price');
   assert.equal(a0 - a1, b0 - cash(B.ev), 'the same as clicking it');
-  assert.equal(A.ev('JSON.stringify([S.pops.ams.gen,S.pops.ams.site2,S.pops.ams.routers,!!S.pops.ams.bb,S.ixp.ams])'), B.ev('JSON.stringify([S.pops.ams.gen,S.pops.ams.site2,S.pops.ams.routers,!!S.pops.ams.bb,S.ixp.ams])'));
-  A.ev('S.cash=10');A.ev("ACT.opsNewPop({city:'lon'})");
-  assert.equal(A.ev('!!S.pops.lon'), false, 'all or nothing on the price');
+  assert.equal(A.ev('JSON.stringify([S.pops.mel.gen,S.pops.mel.site2,S.pops.mel.routers,!!S.pops.mel.bb,S.ixp.mel])'), B.ev('JSON.stringify([S.pops.mel.gen,S.pops.mel.site2,S.pops.mel.routers,!!S.pops.mel.bb,S.ixp.mel])'));
+  A.ev('S.cash=10');A.ev("ACT.opsNewPop({city:'hba'})");
+  assert.equal(A.ev('!!S.pops.hba'), false, 'all or nothing on the price');
   assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });
 
@@ -335,18 +333,18 @@ test('saves: old saves load with no intern and everything off, settings survive 
   assert.equal(ev('S.ops.intern'), null);
   assert.equal(ev('Object.values(S.ops.on).some(Boolean)'), false);
   hire(ev);
-  ev("on=1;S.ops.on.pni=true;S.ops.p.pni={g:50,tier:2,paid:true};S.ops.cap.pni=1e6;S.ops.skip.fra=['caches'];save();S=migrate(JSON.parse(slotRaw(UI.slot)))");
-  assert.equal(ev("S.ops.intern==='kevin'&&S.ops.on.pni&&S.ops.p.pni.tier===2&&S.ops.cap.pni===1e6&&S.ops.skip.fra[0]==='caches'"), true);
-  ev(`S.ops={intern:'mallory',on:{transit:'yes',hack:true},p:{transit:{x:99,prov:'nobody'}},cap:{transit:-5},spent:{transit:'lots'},skip:{atlantis:['transit'],fra:['ix','transit']},
-    log:[{d:1,i:'kevin',r:[['transit',2,['fra +1×100G','<img>']],['evil',1,[]]],f:99,c:'fra'},'junk'],floor:3,tpl:{bb:'no'}};S=migrate(S)`);
+  ev("on=1;S.ops.on.pni=true;S.ops.p.pni={g:50,tier:2,paid:true};S.ops.cap.pni=1e6;S.ops.skip.syd=['caches'];save();S=migrate(JSON.parse(slotRaw(UI.slot)))");
+  assert.equal(ev("S.ops.intern==='kevin'&&S.ops.on.pni&&S.ops.p.pni.tier===2&&S.ops.cap.pni===1e6&&S.ops.skip.syd[0]==='caches'"), true);
+  ev(`S.ops={intern:'mallory',on:{transit:'yes',hack:true},p:{transit:{x:99,prov:'nobody'}},cap:{transit:-5},spent:{transit:'lots'},skip:{atlantis:['transit'],syd:['ix','transit']},
+    log:[{d:1,i:'kevin',r:[['transit',2,['syd +1×100G','<img>']],['evil',1,[]]],f:99,c:'syd'},'junk'],floor:3,tpl:{bb:'no'}};S=migrate(S)`);
   assert.equal(ev('S.ops.intern'), null);
   assert.equal(ev("S.ops.on.transit===false&&!('hack' in S.ops.on)"), true);
   assert.equal(ev("opsP('transit','x')===1.5&&opsP('transit','prov')==='cheap'&&opsCap('transit')===50000&&S.ops.spent.transit===0"), true);
-  assert.equal(ev("JSON.stringify(S.ops.skip)"), '{"fra":["transit"]}');
-  assert.equal(ev("JSON.stringify(S.ops.log)"), '[{"d":1,"i":"kevin","r":[["transit",2,["fra +1×100G"]]]}]');
+  assert.equal(ev("JSON.stringify(S.ops.skip)"), '{"syd":["transit"]}');
+  assert.equal(ev("JSON.stringify(S.ops.log)"), '[{"d":1,"i":"kevin","r":[["transit",2,["syd +1×100G"]]]}]');
   assert.equal(ev('S.ops.floor===50000&&S.ops.tpl.bb===true'), true);
-  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x'},wh:{transit:['fra +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
-  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"sales":2},"wh":{"transit":["fra +1×100G"]},"up":0,"mo":0,"rev":41000,"ff":7}');
+  ev(`S.ops.wk={w:3,i:'kevin',n:{sales:2,evil:9,transit:'x'},wh:{transit:['syd +1×100G','<b>']},up:-5,mo:'a',rev:41000,ff:99};S.ops.rep={i:'mallory'};S=migrate(S)`);
+  assert.equal(ev("JSON.stringify(S.ops.wk)"), '{"w":3,"i":"kevin","n":{"sales":2},"wh":{"transit":["syd +1×100G"]},"up":0,"mo":0,"rev":41000,"ff":7}');
   assert.equal(ev('S.ops.rep'), null);
   assert.deepEqual(errors, []);
 });
@@ -372,7 +370,7 @@ test('the Ops sheet works at 360 px in every language, from the NOC tab and the 
     const txt = doc.getElementById('modalCard').textContent;
     assert.doesNotMatch(txt, /\bops\.[a-z_]+/, lang);
     assert.ok(doc.querySelector('#modalCard select[data-chg="opsCity"]'), lang);
-    ev("closeModal();selectCity('ams')");
+    ev("closeModal();selectCity('mel')");
     assert.ok(doc.querySelector('#panelBody [data-act="opsNewPop"]'), lang);
     assert.doesNotMatch(doc.getElementById('panelBody').textContent, /\bops\.[a-z_]+/, lang);
     assert.deepEqual(errors, [], lang);
@@ -383,7 +381,7 @@ test('the Ops sheet works at 360 px in every language, from the NOC tab and the 
 test('sales trial at most one offer a shift, and an offer that did not fit waits a week', t => {
   const { ev, errors } = game(t);
   hire(ev); on(ev, 'sales', { acc: true, min: 0 });
-  ev("S.offers=['a','b','c'].map(id=>({id,city:'fra',name:id,type:'dia',bw:1e5,rate:600,reqs:[],exp:60}));window.__t=0;window.__a=autoOffer;autoOffer=o=>{__t++;return __a(o)}");
+  ev("S.offers=['a','b','c'].map(id=>({id,city:'syd',name:id,type:'dia',bw:1e5,rate:600,reqs:[],exp:60}));window.__t=0;window.__a=autoOffer;autoOffer=o=>{__t++;return __a(o)}");
   shift(ev);
   assert.equal(ev('__t'), 1, 'one routing trial per shift');
   for (let i = 0; i < 2; i++) { ev('S.day++'); shift(ev); }
@@ -407,54 +405,52 @@ test('re-hiring in a later month starts on a fresh budget, not last month\'s spe
   assert.deepEqual(errors, []);
 });
 
-test('transit never comes from a provider that breaks a promise: no-Cogentle customers, bank covenants, the Spat', t => {
-  const { ev, errors } = game(t, "S.transit=[];ACT.buyTransit({city:'fra',net:'lvl',tier:0});compute();S.transit[0].hist=Array(30).fill(200)");
+test('transit never comes from a provider that breaks a promise: no-Cogentle customers, bank covenants, a de-peering', t => {
+  const { ev, errors } = game(t, "S.transit=[];ACT.buyTransit({city:'syd',net:'lvl',tier:0});compute();S.transit[0].hist=Array(30).fill(200)");
   hire(ev); on(ev, 'transit', { x: 1.5 });
-  assert.equal(ev("cheapestTransit('fra').id"), 'cog', 'Cogentle is the cheapest here, so it would be the pick');
-  ev("S.biz.push({id:'b1',city:'fra',name:'X',type:'dia',bw:1,rate:100,mood:100,since:S.day,reqs:['nocog']})");
+  assert.equal(ev("cheapestTransit('syd').id"), 'cog', 'Cogentle is the cheapest here, so it would be the pick');
+  ev("S.biz.push({id:'b1',city:'syd',name:'X',type:'dia',bw:1,rate:100,mood:100,since:S.day,reqs:['nocog']})");
   assert.equal(ev("reqOk(S.biz[0])"), true);
   shift(ev);
   assert.ok(ev('S.transit.length') > 1 || ev('S.transit[0].n') > 1, 'the intern still topped up');
   assert.equal(ev("S.transit.some(t=>t.net==='cog')"), false);
   assert.equal(ev("reqOk(S.biz[0])"), true, 'the customer still gets what they signed for');
   ev("S.ops.p.transit={x:1.5,prov:'cog'}");
-  assert.notEqual(ev("opsProv('fra').id"), 'cog', 'even when the player picked Cogentle');
-  assert.notEqual(ev("opsTplQuote('ams').net"), 'cog', 'and the new-POP template too');
+  assert.notEqual(ev("opsProv('syd').id"), 'cog', 'even when the player picked Cogentle');
+  assert.notEqual(ev("opsTplQuote('mel').net"), 'cog', 'and the new-POP template too');
   // A bank covenant says the same.
   ev("S.biz=[];S.loans=[{bank:'db',covs:['nocog'],pay:1,bal:1}]");
-  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
-  // Cogentle is not speaking to Goggle: the Spat scenario, or a de-peering.
+  assert.notEqual(ev("cheapestTransit('syd').id"), 'cog');
+  // Cogentle is not speaking to Goggle: a de-peering.
   ev("S.loans=[]");
-  assert.equal(ev("cheapestTransit('fra').id"), 'cog');
+  assert.equal(ev("cheapestTransit('syd').id"), 'cog');
   ev("S.ev.depeer=S.day+5");
-  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
-  ev("S.ev.depeer=0;S.scn={id:'spat',rules:{spat:true}}");
-  assert.notEqual(ev("cheapestTransit('fra').id"), 'cog');
+  assert.notEqual(ev("cheapestTransit('syd').id"), 'cog');
   // Two upstreams: once met, never undone (adding is fine; the order never removes).
-  ev("S.scn=null;S.biz=[{id:'b2',city:'fra',name:'Y',type:'dia',bw:1,rate:1,mood:100,since:0,reqs:['twoup']}]");
-  assert.ok(ev("cheapestTransit('fra')"));
+  ev("S.ev.depeer=0;S.biz=[{id:'b2',city:'syd',name:'Y',type:'dia',bw:1,rate:1,mood:100,since:0,reqs:['twoup']}]");
+  assert.ok(ev("cheapestTransit('syd')"));
   ev("S.transit=[]");
-  assert.equal(ev("cheapestTransit('fra')"), undefined, 'a lone first upstream would break "two upstreams"');
+  assert.equal(ev("cheapestTransit('syd')"), undefined, 'a lone first upstream would break "two upstreams"');
   assert.deepEqual(errors, []);
 });
 
 test('decommission keeps its spare in another trench than the big link', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T1'],['s2',0,'T2']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:tr});compute()");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T1'],['s2',0,'T2']])S.links.push({id,a:'syd',b:'mel',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:tr});compute()");
   hire(ev); on(ev, 'decom', { keep: true });
   ev("R.load={big:1,s1:0,s2:0}");
   shift(ev);
   assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['big', 's2'], 'the 100G in the same trench goes, the 10G in its own trench stays');
   // Every small wave shares the big one's trench: keep the largest, as before.
-  ev("S.links=S.links.filter(l=>l.id==='big');for(const [id,tier] of [['a',1],['b',0]])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:'T1'});compute();R.load={big:1}");
+  ev("S.links=S.links.filter(l=>l.id==='big');for(const [id,tier] of [['a',1],['b',0]])S.links.push({id,a:'syd',b:'mel',kind:'wave',tier,km:400,sub:false,cut:0,mo:100,trench:'T1'});compute();R.load={big:1}");
   shift(ev);
   assert.deepEqual(JSON.parse(ev("JSON.stringify(S.links.map(l=>l.id).sort())")), ['a', 'big']);
   assert.deepEqual(errors, []);
 });
 
 test('decommission sees the traffic of a customer signed earlier in the same shift', t => {
-  const { ev, errors } = game(t, "S.pops.fra.bb.d=30;ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T2'],['s2',1,'T3']])S.links.push({id,a:'fra',b:'ams',kind:'wave',tier,km:400,sub:false,cut:0,mo:1000,trench:tr});compute()");
+  const { ev, errors } = game(t, "S.pops.syd.bb.d=30;ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;for(const [id,tier,tr] of [['big',2,'T1'],['s1',1,'T2'],['s2',1,'T3']])S.links.push({id,a:'syd',b:'mel',kind:'wave',tier,km:400,sub:false,cut:0,mo:1000,trench:tr});compute()");
   hire(ev); on(ev, 'sales', { acc: true, min: 0 }); on(ev, 'decom', { keep: false });
-  ev("S.offers=[{id:'o1',city:'fra',city2:'ams',name:'Bulk Co',type:'l2vpn',bw:450,rate:20,reqs:[],exp:S.day+20}]");
+  ev("S.offers=[{id:'o1',city:'syd',city2:'mel',name:'Bulk Co',type:'l2vpn',bw:450,rate:20,reqs:[],exp:S.day+20}]");
   shift(ev);
   assert.deepEqual(JSON.parse(ev('JSON.stringify(S.biz.map(b=>b.id))')).length, 1, 'signed');
   assert.equal(ev('S.links.length'), 3, 'its 450G needs every wave, so none goes');
@@ -466,7 +462,7 @@ test('decommission sees the traffic of a customer signed earlier in the same shi
 test('no recompute on a shift that only declined offers or stopped at a budget', t => {
   const { ev, errors } = game(t);
   hire(ev); on(ev, 'sales', { acc: false, min: 50000 }); on(ev, 'transit', { x: 3 }, 10000);
-  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.offers=[{id:'tiny',city:'fra',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30}]");
+  ev("S.ops.spent.transit=10000;S.transit[0].hist=[600];S.offers=[{id:'tiny',city:'syd',name:'Tiny',type:'dia',bw:1,rate:600,reqs:[],exp:30}]");
   const n = ev("window.__c=compute;window.__n=0;compute=()=>{__n++;return __c()};opsDay(S.day);compute=__c;__n");
   assert.equal(n, 0, 'nothing in the network changed');
   assert.match(ev('opsEntry(S.ops.log[0])'), /declined a tiny offer, stopped at the budget/);
@@ -476,15 +472,15 @@ test('no recompute on a shift that only declined offers or stopped at a budget',
 });
 
 test('per-POP exceptions go with the POP: on decommission, and in a save that lost it', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ams'});ACT.buildPop({city:'lon'});compute()");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});ACT.buildPop({city:'hba'});compute()");
   hire(ev);
-  ev("ACT.opsPop({k:'transit',city:'ams'});ACT.opsPop({k:'caches',city:'lon'});closeModal()");
-  ev("decommission(['ams'])");
-  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}');
-  ev("ACT.buildPop({city:'ams'});closeModal()");
-  assert.equal(ev("opsHere('transit','ams')"), true, 'a rebuilt POP starts with every order on');
-  ev("S.ops.skip.par=['transit'];S=migrate(JSON.parse(JSON.stringify(S)))");
-  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"lon":["caches"]}', 'no POP in Paris: its exception is dropped on load');
+  ev("ACT.opsPop({k:'transit',city:'mel'});ACT.opsPop({k:'caches',city:'hba'});closeModal()");
+  ev("decommission(['mel'])");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"hba":["caches"]}');
+  ev("ACT.buildPop({city:'mel'});closeModal()");
+  assert.equal(ev("opsHere('transit','mel')"), true, 'a rebuilt POP starts with every order on');
+  ev("S.ops.skip.adl=['transit'];S=migrate(JSON.parse(JSON.stringify(S)))");
+  assert.equal(ev('JSON.stringify(S.ops.skip)'), '{"hba":["caches"]}', 'no POP in Adelaide: its exception is dropped on load');
   assert.deepEqual(errors, []);
 });
 
@@ -511,10 +507,10 @@ test('the fat-fingered LAG member respects a paused transit order and per-POP ex
   assert.equal(ev('__k'), 3);
   assert.equal(ev('S.ops.log[0].f'), 0, 'transit order paused: a harmless label instead');
   assert.equal(ev('S.transit[0].n||1'), n0); assert.equal(cash(ev), c0);
-  on(ev, 'transit', { x: 1 }); ev("ACT.opsPop({k:'transit',city:'fra'});closeModal();S.transit[0].hist=[0]");
+  on(ev, 'transit', { x: 1 }); ev("ACT.opsPop({k:'transit',city:'syd'});closeModal();S.transit[0].hist=[0]");
   shift(ev);
-  assert.equal(ev('S.ops.log[0].f'), 0, 'Frankfurt excepted: the same');
-  ev("ACT.opsPop({k:'transit',city:'fra'});closeModal()");
+  assert.equal(ev('S.ops.log[0].f'), 0, 'Sydney excepted: the same');
+  ev("ACT.opsPop({k:'transit',city:'syd'});closeModal()");
   shift(ev);
   assert.equal(ev('S.ops.log[0].f'), 3, 'allowed: the extra member');
   assert.equal(ev('S.transit[0].n||1'), n0 + 1);
@@ -525,7 +521,7 @@ test('the fat-fingered LAG member respects a paused transit order and per-POP ex
 test('caches: the cash floor and a running-cost budget hold; the panel and the log show what a month costs', t => {
   const { ev, errors } = game(t);
   hire(ev); on(ev, 'caches', { g: 1 });
-  const add = () => ev("utilityCaches('fra').add.filter(x=>(R.cityDem.fra||0)*NSH[x.net]>=1).length");
+  const add = () => ev("utilityCaches('syd').add.filter(x=>(R.cityDem.syd||0)*NSH[x.net]>=1).length");
   assert.ok(add() >= 2, 'several boxes on offer');
   ev('S.ops.floor=50000;S.cash=1000');
   shift(ev);
@@ -538,7 +534,7 @@ test('caches: the cash floor and a running-cost budget hold; the panel and the l
   assert.equal(ev('S.ops.addMo.caches'), 800);
   assert.equal(ev('opsMoNow()') - m0, 800);
   assert.equal(ev('S.ops.log[0].mo'), 800);
-  assert.match(ev('opsEntry(S.ops.log[0])'), /racked 2 free caches \(Frankfurt\).*Cost: \$0 up front, \+\$800\/mo\./);
+  assert.match(ev('opsEntry(S.ops.log[0])'), /racked 2 free caches \(Sydney\).*Cost: \$0 up front, \+\$800\/mo\./);
   ev('opsModal()');
   const txt = ev("document.getElementById('modalCard').textContent");
   assert.match(txt, /each box costs \$400\/mo/);
@@ -566,7 +562,7 @@ test('transit: the log line and budget line show the monthly cost a top-up adds'
 test('#226 the shift report\'s Open button in the NOC opens the Ops sheet, and survives a reload', t => {
   const { ev, errors, dom } = game(t);
   ev('S.day=14'); hire(ev); on(ev, 'sales', { acc: false, min: 5000 });
-  ev("S.offers=[{id:'t',city:'fra',name:'T',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=15"); shift(ev);
+  ev("S.offers=[{id:'t',city:'syd',name:'T',type:'dia',bw:1,rate:600,reqs:[],exp:60}];S.day=15"); shift(ev);
   ev('S.day=21'); shift(ev);
   assert.match(ev('S.log[0].t'), /^Kevin's week/);
   ev("S=migrate(JSON.parse(JSON.stringify(S)));closeModal();ACT.leftTab({t:'noc'})");
@@ -580,37 +576,37 @@ test('#226 the shift report\'s Open button in the NOC opens the Ops sheet, and s
 });
 
 test('#228 the intern names the exchanges it peered at, even one that shares its city\'s id', t => {
-  const { ev, errors } = game(t, "ACT.buyIx({city:'fra',tier:0,signed:true})");
+  const { ev, errors } = game(t, "ACT.buyIx({city:'syd',tier:0})");
   hire(ev); on(ev, 'ix');
   ev('S.day=14'); shift(ev);
   const line = ev('opsLine(S.ops.log[0])');
-  // Frankfurt's first exchange has the city's id: the line names DE-KICKS, not the city
-  assert.match(line, /peered with \d+ networks? at DE-KICKS/, line);
-  assert.doesNotMatch(line, /at Frankfurt/);
+  // Sydney's first exchange has the city's id: the line names IX Straya, not the city
+  assert.match(line, /peered with \d+ networks? at IX Straya/, line);
+  assert.doesNotMatch(line, /at Sydney/);
   // two exchanges in two cities read as two exchanges, in the daily line and in the week's report
-  const e = "{i:'kevin',r:[['peer',2,['fra~3','lon']]],up:0,mo:0}";
-  assert.match(ev(`opsLine(${e})`), /at Apfelwein-IX, LYNX/);
-  assert.match(ev("opsWeekLine({w:2,i:'kevin',n:{peer:2},wh:{peer:['fra~3','lon']},up:0,mo:0,rev:0,ff:0})"), /at Apfelwein-IX, LYNX/);
+  const e = "{i:'kevin',r:[['peer',2,['syd~2','hba']]],up:0,mo:0}";
+  assert.match(ev(`opsLine(${e})`), /at At-The-Edge IX, Cousin-IX/);
+  assert.match(ev("opsWeekLine({w:2,i:'kevin',n:{peer:2},wh:{peer:['syd~2','hba']},up:0,mo:0,rev:0,ff:0})"), /at At-The-Edge IX, Cousin-IX/);
   // other orders still name cities
-  assert.match(ev("opsLine({i:'kevin',r:[['routers',1,['lon +1']]],up:0,mo:0})"), /London \+1/);
+  assert.match(ev("opsLine({i:'kevin',r:[['routers',1,['hba +1']]],up:0,mo:0})"), /Hobart \+1/);
   assert.deepEqual(errors, []);
 });
 
 test('#227 transit "Already connected" grows the providers you have, the smallest first, and never signs a new one', t => {
-  const { ev, errors } = game(t, "ACT.buyTransit({city:'fra',net:'ntt',tier:1});compute()");
+  const { ev, errors } = game(t, "ACT.buyTransit({city:'syd',net:'ntt',tier:1});compute()");
   hire(ev); on(ev, 'transit', { x: 1.5, prov: 'have' });
-  const capOf = net => ev(`(()=>{const t=S.transit.find(x=>x.city==='fra'&&x.net==='${net}');return lagCap(PORT[t.tier].g,t.n)})()`);
+  const capOf = net => ev(`(()=>{const t=S.transit.find(x=>x.city==='syd'&&x.net==='${net}');return lagCap(PORT[t.tier].g,t.n)})()`);
   const c0 = capOf('cog'), n0 = capOf('ntt');
   assert.equal(c0, n0, 'two equal ports to start');
   ev('for(const t of S.transit)t.hist=[100]'); shift(ev);
-  assert.equal(ev("JSON.stringify(S.transit.filter(t=>t.city==='fra').map(t=>t.net).sort())"), '["cog","ntt"]', 'no new provider');
+  assert.equal(ev("JSON.stringify(S.transit.filter(t=>t.city==='syd').map(t=>t.net).sort())"), '["cog","ntt"]', 'no new provider');
   assert.ok(capOf('cog') > c0 && capOf('ntt') > n0, 'both grew, not just one');
   assert.equal(capOf('cog'), capOf('ntt'), 'evenly, smallest first');
-  // a POP whose only upstream is not the cheapest never gets the cheapest added (Cheapest would buy Cogentle there)
-  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=1;ACT.launchBB({city:'ams'});ACT.buyTransit({city:'ams',net:'ntt',tier:1});compute()");
-  assert.equal(ev("cheapestTransit('ams').id"), 'cog');
+  // a POP whose only upstream is not the cheapest never gets the cheapest added (Cheapest would buy Drizzle there)
+  ev("ACT.buildPop({city:'mel'});S.pops.mel.rgen=1;ACT.launchBB({city:'mel'});ACT.buyTransit({city:'mel',net:'tsy',tier:1});compute()");
+  assert.equal(ev("cheapestTransit('mel').id"), 'drz');
   ev("for(const t of S.transit)t.hist=[400]"); ev('S.day++'); shift(ev);
-  assert.equal(ev("JSON.stringify(S.transit.filter(t=>t.city==='ams').map(t=>t.net))"), '["ntt"]');
+  assert.equal(ev("JSON.stringify(S.transit.filter(t=>t.city==='mel').map(t=>t.net))"), '["tsy"]');
   // the setting cycles through it, reads "Already connected" and survives a save
   ev("S.ops.p.transit.prov='cheap';ACT.opsParam({k:'transit',p:'prov'})");
   assert.equal(ev("opsP('transit','prov')"), 'have');
@@ -621,26 +617,26 @@ test('#227 transit "Already connected" grows the providers you have, the smalles
 });
 
 test('#244 the PNI order counts the traffic the PNI list shows at that POP, not what cache boxes there already serve', t => {
-  const { ev, errors } = game(t, "ACT.buildPop({city:'ham'});for(const c of ['fra','ham']){S.pops[c].rgen=mainRG(4);S.pops[c].routers=6;if(!S.pops[c].bb)ACT.launchBB({city:c});S.pops[c].bb.d=CITY[c].P*0.9;}UI.pending={a:'fra',b:'ham'};ACT.buildLink({tier:3});closeModal();ACT.buyTransit({city:'fra',net:'cog',tier:3});ACT.buyTransit({city:'ham',net:'cog',tier:3});for(let i=0;i<6;i++)S.caches.push({id:'nfx'+i,city:'ham',net:'nfx'});compute()");
-  // Hamburg's users want a lot from NetChill, but its cache boxes there serve most of it: little is left for a PNI
-  const whole = ev("(R.cityDem.ham||0)*NSH.nfx"), here = ev("pniVal('nfx','ham').want");
+  const { ev, errors } = game(t, "ACT.buildPop({city:'mel'});for(const c of ['syd','mel']){S.pops[c].rgen=mainRG(4);S.pops[c].routers=6;if(!S.pops[c].bb)ACT.launchBB({city:c});S.pops[c].bb.d=CITY[c].P*0.9;}UI.pending={a:'syd',b:'mel'};ACT.buildLink({tier:3});closeModal();ACT.buyTransit({city:'syd',net:'cog',tier:3});ACT.buyTransit({city:'mel',net:'cog',tier:3});for(let i=0;i<6;i++)S.caches.push({id:'nfx'+i,city:'mel',net:'nfx'});compute()");
+  // Melbourne's users want a lot from NetChill, but its cache boxes there serve most of it: little is left for a PNI
+  const whole = ev("(R.cityDem.mel||0)*NSH.nfx"), here = ev("pniVal('nfx','mel').want");
   assert.ok(whole >= 10 && here < 10, `whole demand ${whole}, left for a PNI ${here}`);
   hire(ev); on(ev, 'pni', { g: 10, tier: 0 }, 0);
   ev('S.day=Math.ceil((S.day+1)/7)*7+3'); shift(ev);
-  assert.equal(ev("S.pni.some(p=>p.city==='ham'&&p.net==='nfx')"), false, 'no NetChill PNI in Hamburg for 2-odd Gbps');
+  assert.equal(ev("S.pni.some(p=>p.city==='mel'&&p.net==='nfx')"), false, 'no NetChill PNI in Melbourne for 2-odd Gbps');
   // without the cache boxes all of it goes over transit, and the same order does buy the PNI
-  ev("S.caches=S.caches.filter(x=>x.city!=='ham');compute()");
-  assert.ok(ev("pniVal('nfx','ham').want") >= 10);
+  ev("S.caches=S.caches.filter(x=>x.city!=='mel');compute()");
+  assert.ok(ev("pniVal('nfx','mel').want") >= 10);
   ev('S.day+=7'); shift(ev);
-  assert.equal(ev("S.pni.some(p=>p.city==='ham'&&p.net==='nfx')"), true, 'ordered once the traffic is really there');
+  assert.equal(ev("S.pni.some(p=>p.city==='mel'&&p.net==='nfx')"), true, 'ordered once the traffic is really there');
   assert.deepEqual(errors, []);
 });
 
 test('#249 a city without a POP opens while the transit order is set to Already connected', t => {
   const { ev, dom, errors } = game(t, '');
   hire(ev); on(ev, 'transit', { x: 1.5, prov: 'have' });
-  ev("selectCity('lon')");
-  assert.match(dom.window.document.getElementById('panelBody').textContent, /London/);
-  assert.equal(ev("opsProv('lon')&&opsProv('lon').id"), ev("cheapestTransit('lon')&&cheapestTransit('lon').id"), 'the quote uses the cheapest seller');
+  ev("selectCity('hba')");
+  assert.match(dom.window.document.getElementById('panelBody').textContent, /Hobart/);
+  assert.equal(ev("opsProv('hba')&&opsProv('hba').id"), ev("cheapestTransit('hba')&&cheapestTransit('hba').id"), 'the quote uses the cheapest seller');
   assert.deepEqual(errors, []);
 });

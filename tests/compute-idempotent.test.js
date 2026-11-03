@@ -12,7 +12,7 @@ const rj = (ev) => ev("JSON.stringify(R,(k,v)=>k==='attack'||k==='parent'?(v&&v.
 
 test('95th percentile: a recompute later in the day bills the same 30 days as the day tick did', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'lvl',tier:1});closeModal()");
+  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'lvl',tier:1});closeModal()");
   // Thirty days on file, two of them huge: counting today twice (and dropping the oldest day left) would lose one.
   ev("S.offers=[];const t=S.transit[0];t.hist=Array.from({length:30},(_,i)=>i===1||i===3?5000:1);S.nextFail=S.nextEvent=S.day+99;dayTick()");
   const tick = ev('R.p95[S.transit[0].id]'), cost = ev('R.cost.transit');

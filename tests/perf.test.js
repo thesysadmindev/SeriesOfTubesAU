@@ -20,7 +20,7 @@ test('perf bench: the Mann–Whitney p-values match SciPy', () => {
 
 test('perf bench: runs end to end on a small save and compares a version with itself', () => {
   const { ev } = load();
-  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'})");
+  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buildPop({city:'mel'})");
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'perf-'));
   const save = path.join(dir, 'save.json'), js = path.join(dir, 'out.json');
   fs.writeFileSync(save, JSON.stringify({ app: 'series-of-tubes', version: 'test', S: JSON.parse(ev('JSON.stringify(S)')) }));

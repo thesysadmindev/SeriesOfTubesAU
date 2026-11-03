@@ -7,13 +7,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load } = require('./harness');
 
-// Frankfurt with 200 G of subscribers, one 100G Cogentle transit, a game server (the target) and a DIA customer.
+// Sydney with 200 G of subscribers, one 100G Cogentle transit, a game server (the target) and a DIA customer.
 function fra(ev, rg = 'Arrrhipster 7280R') {
-  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'fra'});S.pops.fra.bb.d=40;ACT.buyTransit({city:'fra',net:'cog',tier:1})");
-  ev(`S.pops.fra.rgen=RG.findIndex(r=>r.n===${JSON.stringify(rg)})`);
-  ev("S.biz.push({id:'g',type:'game',name:'Lag Lords',city:'fra',bw:10,rate:100,mood:80,since:0,reqs:[]},{id:'d',type:'dia',name:'Bystander',city:'fra',bw:5,rate:100,mood:80,since:0,reqs:[]});compute()");
+  ev("ACT.start({});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;S.lvl=4;S.nextFail=1e9;S.nextEvent=1e9;ACT.launchBB({city:'syd'});S.pops.syd.bb.d=40;ACT.buyTransit({city:'syd',net:'cog',tier:1})");
+  ev(`S.pops.syd.rgen=RG.findIndex(r=>r.n===${JSON.stringify(rg)})`);
+  ev("S.biz.push({id:'g',type:'game',name:'Lag Lords',city:'syd',bw:10,rate:100,mood:80,since:0,reqs:[]},{id:'d',type:'dia',name:'Bystander',city:'syd',bw:5,rate:100,mood:80,since:0,reqs:[]});compute()");
 }
-const flood = (ev, o) => ev(`(()=>{const a=Object.assign({id:'a'+Math.random().toString(36).slice(2,7),city:'fra',tgt:'g',vec:'dns',gbps:200,start:S.day,until:S.day+2,bh:false},${JSON.stringify(o || {})});if(!S.ev.ddos)S.ev.ddos=a;else S.ev.ddosMore.push(a);compute();return a.id})()`);
+const flood = (ev, o) => ev(`(()=>{const a=Object.assign({id:'a'+Math.random().toString(36).slice(2,7),city:'syd',tgt:'g',vec:'dns',gbps:200,start:S.day,until:S.day+2,bh:false},${JSON.stringify(o || {})});if(!S.ev.ddos)S.ev.ddos=a;else S.ev.ddosMore.push(a);compute();return a.id})()`);
 const rep = (ev, id, expr) => ev(`(()=>{const m=ddosReport(ddosAll().find(a=>a.id==='${id}'));return ${expr};})()`);
 const sfB = (ev, id) => ev(`bizSf(S.biz.find(b=>b.id==='${id}'),linkIds())`);
 
@@ -39,7 +39,7 @@ test('a flood bigger than its port fills it and slows everyone on it; Flowspec b
   assert.ok(rep(ev, id, 'm.fs') > 50, 'Flowspec drops what got in');
   assert.ok(sfB(ev, 'd') < 0.9, `the bystander is slowed: ${sfB(ev, 'd')}`);
   assert.ok(ev(`ddosCol(ddosAll()[0])`) >= 0.01, 'and it counts as collateral');
-  assert.ok(ev("R.ddosHot.fra") === 1, 'the map marks the full port');
+  assert.ok(ev("R.ddosHot.syd") === 1, 'the map marks the full port');
   assert.match(ev("ddosOne(ddosAll()[0])"), /RTBH the target/, 'the NOC suggests RTBH');
   assert.deepEqual(errors, []);
 });
@@ -66,7 +66,7 @@ test('RTBH saves everyone else and sends only the target dark', () => {
 test('the same flood spread over eight POPs fills no port', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("const cs=['ams','lon','par','zrh','mad','mil','vie'];for(const c of cs){ACT.buildPop({city:c});ACT.buyTransit({city:c,net:'cog',tier:1});}let p='fra';for(const c of cs){UI.pending={a:p,b:c};ACT.buildLink({tier:1});p=c;}closeModal();compute()");
+  ev("const cs=['cbr','mel','adl','per','bne','drw','ntl'];for(const c of cs){ACT.buildPop({city:c});ACT.buyTransit({city:c,net:'tsy',tier:1});}let p='syd';for(const c of cs){UI.pending={a:p,b:c};ACT.buildLink({tier:1});p=c;}closeModal();compute()");
   const id = flood(ev, { gbps: 200 });
   assert.equal(rep(ev, id, 'm.portList.length'), 8);
   assert.equal(rep(ev, id, 'm.full'), 0);
@@ -79,17 +79,17 @@ test('Flowspec rules are finite on each router: the third flood on a two-rule ro
   fra(ev, 'Mikrowtik CCR');
   const ids = [flood(ev, { gbps: 5 }), flood(ev, { gbps: 5, start: ev('S.day') + 0.1 }), flood(ev, { gbps: 5, start: ev('S.day') + 0.2 })];
   assert.deepEqual(ids.map((id) => rep(ev, id, 'm.fsAt.length')), [1, 1, 0]);
-  assert.deepEqual(JSON.parse(rep(ev, ids[2], 'JSON.stringify(m.fsFull)')), ['fra']);
-  assert.deepEqual(JSON.parse(ev("JSON.stringify(R.fsUse.fra)")), { used: 2, cap: 2 });
+  assert.deepEqual(JSON.parse(rep(ev, ids[2], 'JSON.stringify(m.fsFull)')), ['syd']);
+  assert.deepEqual(JSON.parse(ev("JSON.stringify(R.fsUse.syd)")), { used: 2, cap: 2 });
   // A carpet bomb needs four rules: none fit.
   ev("S.ev.ddos=null;S.ev.ddosMore=[];compute()");
   const c = flood(ev, { gbps: 5, carpet: true });
   assert.equal(rep(ev, c, 'm.fsAt.length'), 0);
   // No signature, no rule: an HTTP flood never matches.
-  ev("S.ev.ddos=null;S.ev.ddosMore=[];S.pops.fra.rgen=RG.findIndex(r=>r.fsN===42);compute()");
+  ev("S.ev.ddos=null;S.ev.ddosMore=[];S.pops.syd.rgen=RG.findIndex(r=>r.fsN===42);compute()");
   const h = flood(ev, { gbps: 5, vec: 'http' });
   assert.equal(rep(ev, h, 'm.fs'), 0);
-  ev("selectCity('fra');UI.tab='infra';renderPanel()");
+  ev("selectCity('syd');UI.tab='infra';renderPanel()");
   assert.match(ev("document.getElementById('panelBody').textContent"), /Flowspec rules0 \/ 42 in use/);
   assert.deepEqual(errors, []);
 });
@@ -97,7 +97,7 @@ test('Flowspec rules are finite on each router: the third flood on a two-rule ro
 test('an engaged scrubbing center pulls the flood off your ports; what it cannot clean hurts only the target', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("S.scrubs=[{city:'fra',tier:1}];S.scrubMode='always';compute()");
+  ev("S.scrubs=[{city:'syd',tier:1}];S.scrubMode='always';compute()");
   const id = flood(ev, { gbps: 2000, vec: 'http' });
   assert.equal(rep(ev, id, 'm.portList.length'), 0, 'nothing on the ordinary ports');
   assert.equal(rep(ev, id, 'Math.round(m.cleaned)'), 1000, 'the 1T sponge is full');
@@ -140,10 +140,10 @@ test('held, sacrificed and got through are scored at the end', () => {
   assert.deepEqual(errors, []);
 });
 
-test('how often: never in Change Freeze, Sandbox or puzzles; BGP at 3 a.m. about twice On-call', () => {
+test('how often: never in Change Freeze or Sandbox; BGP at 3 a.m. about twice On-call', () => {
   const count = (preset, mode = 'normal') => {
     const { ev } = load({ seed: 11 });
-    ev(`beginGame('T','fra',${JSON.stringify({ mode, preset })});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;ACT.launchBB({city:'fra'})`);
+    ev(`beginGame('T','syd',${JSON.stringify({ mode, preset })});if(UI.pendGame)ACT.pitchSkip();S.cash=1e9;ACT.launchBB({city:'syd'})`);
     return ev("window.__n=0;const real=ddosAttack;ddosAttack=()=>{window.__n++;};for(let d=41;d<1136;d++){S.day=d;ddosTick();}ddosAttack=real;window.__n");
   };
   const oncall = count('oncall'), bgp = count('bgp');
@@ -156,7 +156,7 @@ test('how often: never in Change Freeze, Sandbox or puzzles; BGP at 3 a.m. about
 test('saves before 2.2 load: an attack on a city finds its target, and an IX blackhole is dropped', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("const s=JSON.parse(JSON.stringify(packSave(S)));s.ev={ddos:{id:'old',city:'fra',vec:'dns',gbps:80,until:S.day+2,start:S.day,bh:false,ixbh:true,entry:{k:'t',id:'x',lab:'y'}},ddosMore:[{id:'o2',city:'fra',vec:'ntp',gbps:5,until:S.day+2,start:S.day,tgt:'nobody'}]};S=migrate(s);compute()");
+  ev("const s=JSON.parse(JSON.stringify(packSave(S)));s.ev={ddos:{id:'old',city:'syd',vec:'dns',gbps:80,until:S.day+2,start:S.day,bh:false,ixbh:true,entry:{k:'t',id:'x',lab:'y'}},ddosMore:[{id:'o2',city:'syd',vec:'ntp',gbps:5,until:S.day+2,start:S.day,tgt:'nobody'}]};S=migrate(s);compute()");
   assert.equal(ev('S.ev.ddos.tgt'), 'g', 'the most attractive customer in the city');
   assert.equal(ev('S.ev.ddos.ixbh'), undefined);
   assert.equal(ev('S.ev.ddos.entry'), undefined);
@@ -170,7 +170,7 @@ test('saves before 2.2 load: an attack on a city finds its target, and an IX bla
 
 test('the NOC card fits a phone and the sandbox can send a test flood', () => {
   const { ev, errors, dom } = load();
-  ev("beginGame('T','fra',{mode:'sandbox',preset:'sandbox'});if(UI.pendGame)ACT.pitchSkip();ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});UI.left='noc';renderLeft()");
+  ev("beginGame('T','syd',{mode:'sandbox',preset:'sandbox'});if(UI.pendGame)ACT.pitchSkip();ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});UI.left='noc';renderLeft()");
   const b = dom.window.document.querySelector('[data-act=ddosTest]');
   assert.ok(b, 'a test flood button in Sandbox');
   b.click();
@@ -185,7 +185,7 @@ test('the NOC card fits a phone and the sandbox can send a test flood', () => {
 test('a DDoS-protection customer under attack who goes down, or is blackholed, is paid out once per attack', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("S.biz.push({id:'p',type:'scrub',name:'Shield',city:'fra',bw:5,rate:900,mood:80,since:0,reqs:[]});compute()");
+  ev("S.biz.push({id:'p',type:'scrub',name:'Shield',city:'syd',bw:5,rate:900,mood:80,since:0,reqs:[]});compute()");
   flood(ev, { tgt: 'p', vec: 'http', gbps: 60, until: ev('S.day') + 3 });
   ev('dayTick();dayTick()');
   assert.equal(ev('S.stats.sla'), 1, 'once, not every day');
@@ -228,13 +228,13 @@ test('Hackback 3000 is still a gamble', () => {
 test('a sacrificial PNI takes all of its peer\'s junk, and a clean pipe scrubs a transit upstream', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("ACT.buyTransit({city:'fra',net:'lvl',tier:1});S.transit[0].clean=true;compute()");
+  ev("ACT.buyTransit({city:'syd',net:'lvl',tier:1});S.transit[0].clean=true;compute()");
   const id = flood(ev, { gbps: 150 });
   const ports = JSON.parse(rep(ev, id, 'JSON.stringify(m.portList.map(p=>[p.lab,Math.round(p.off)]))'));
   assert.equal(ports.length, 2);
   assert.ok(ports.find((p) => /Cogentle/.test(p[0]))[1] < ports.find((p) => !/Cogentle/.test(p[0]))[1] / 5, `the clean pipe took most of its share: ${JSON.stringify(ports)}`);
   // A PNI with a network that also comes in over transit: once sacrificial, that network's junk goes only there.
-  ev("S.pni.push({id:'px',city:'fra',net:'ggl',tier:1,ready:0,sacrif:true});S.ev.ddos=null;S.ev.ddosMore=[];compute()");
+  ev("S.pni.push({id:'px',city:'syd',net:'ggl',tier:1,ready:0,sacrif:true});S.ev.ddos=null;S.ev.ddosMore=[];compute()");
   const id2 = flood(ev, { gbps: 150 });
   assert.ok(rep(ev, id2, "m.portList.some(p=>p.k==='p')"), 'junk arrives on the sacrificial PNI');
   assert.deepEqual(errors, []);
@@ -243,12 +243,12 @@ test('a sacrificial PNI takes all of its peer\'s junk, and a clean pipe scrubs a
 test('several scrubbing centers share a flood by size, and a far one costs the target latency', () => {
   const { ev, errors } = load();
   fra(ev);
-  ev("for(const c of ['ams','nyc'])ACT.buildPop({city:c});UI.pending={a:'fra',b:'ams'};ACT.buildLink({tier:1});UI.pending={a:'ams',b:'nyc'};ACT.buildLink({tier:1});closeModal();S.scrubs=[{city:'ams',tier:1},{city:'nyc',tier:0}];S.scrubMode='always';compute()");
+  ev("for(const c of ['mel','bne'])ACT.buildPop({city:c});UI.pending={a:'syd',b:'mel'};ACT.buildLink({tier:1});UI.pending={a:'mel',b:'bne'};ACT.buildLink({tier:1});closeModal();S.scrubs=[{city:'mel',tier:1},{city:'bne',tier:0}];S.scrubMode='always';compute()");
   const id = flood(ev, { gbps: 550 });
   const parts = JSON.parse(rep(ev, id, 'JSON.stringify(m.parts.map(p=>[p.city,Math.round(p.a)]))'));
-  assert.deepEqual(parts, [['ams', 500], ['nyc', 50]]);
-  assert.ok(ev("R.haul.find(q=>q.to==='nyc').ms") > ev("R.haul.find(q=>q.to==='ams').ms"), 'across the Atlantic and back');
-  assert.match(ev("ddosOne(ddosAll()[0])"), /detour via New York/);
+  assert.deepEqual(parts, [['mel', 500], ['bne', 50]]);
+  assert.ok(ev("R.haul.find(q=>q.to==='bne').ms") > ev("R.haul.find(q=>q.to==='mel').ms"), 'across the Atlantic and back');
+  assert.match(ev("ddosOne(ddosAll()[0])"), /detour via Brisbane/);
   assert.deepEqual(errors, []);
 });
 
@@ -260,7 +260,7 @@ test('RackNet and TeamSpooked need gaming customers and slip past Flowspec; ampl
   assert.equal(ev("DDOS_VEC.racknet.fs||DDOS_VEC.teamspooked.fs||DDOS_VEC.ack.fs"), false);
   assert.ok(ev("DDOS_VEC.memcached.fs&&DDOS_VEC.dns.fs"));
   // A gaming target draws gaming vectors; a DIA customer never does.
-  const vecs = JSON.parse(ev("__reseed(4);ddosPickTgt=()=>['d','fra'];const o=[];for(let i=0;i<60;i++){S.ddosStarts=[];const a=ddosAttack(false);if(a)o.push(a.vec);}JSON.stringify(o)"));
+  const vecs = JSON.parse(ev("__reseed(4);ddosPickTgt=()=>['d','syd'];const o=[];for(let i=0;i<60;i++){S.ddosStarts=[];const a=ddosAttack(false);if(a)o.push(a.vec);}JSON.stringify(o)"));
   assert.ok(vecs.every((v) => !['racknet', 'teamspooked'].includes(v)));
   assert.deepEqual(errors, []);
 });

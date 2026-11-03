@@ -28,7 +28,7 @@ test('version.json carries the release notes from the changelog', () => {
 
 test('head carries the SEO and social metadata', () => {
   const html = require('../scripts/lib/page').assemble().html;
-  for (const needle of ['<link rel="canonical" href="https://seriesoftub.es/">', 'property="og:image"', 'name="twitter:card"', 'application/ld+json', 'rel="manifest"', 'name="description"']) {
+  for (const needle of ['<link rel="canonical" href="https://seriesoftubes.au/">', 'property="og:image"', 'name="twitter:card"', 'application/ld+json', 'rel="manifest"', 'name="description"']) {
     assert.ok(html.includes(needle), `missing ${needle}`);
   }
   for (const block of html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {

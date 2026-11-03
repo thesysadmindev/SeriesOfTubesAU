@@ -5,8 +5,8 @@ const { load } = require('./harness');
 
 test('#62 a redundancy check computes only the trial, and matches comparing two fresh routings', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e8;ACT.buildPop({city:'bde'});ACT.buildPop({city:'ams'});S.biz=[{id:'circuit',name:'Test Circuit',type:'l2vpn',city:'fra',city2:'bde',bw:80,rate:1,reqs:[]}]");
-  ev("S.links=[{id:'main',a:'fra',b:'bde',kind:'wave',tier:1,km:100,mo:100,cut:0},{id:'a',a:'fra',b:'ams',kind:'wave',tier:0,km:100,mo:100,cut:0},{id:'b',a:'ams',b:'bde',kind:'wave',tier:0,km:100,mo:100,cut:0}];compute()");
+  ev("ACT.start({});S.cash=1e8;ACT.buildPop({city:'akl'});ACT.buildPop({city:'mel'});S.biz=[{id:'circuit',name:'Test Circuit',type:'l2vpn',city:'syd',city2:'akl',bw:80,rate:1,reqs:[]}]");
+  ev("S.links=[{id:'main',a:'syd',b:'akl',kind:'wave',tier:1,km:100,mo:100,cut:0},{id:'a',a:'syd',b:'mel',kind:'wave',tier:0,km:100,mo:100,cut:0},{id:'b',a:'mel',b:'akl',kind:'wave',tier:0,km:100,mo:100,cut:0}];compute()");
   ev("window.__n=0;window.__c=compute;compute=function(){window.__n++;return window.__c.apply(this,arguments);}");
   const t = JSON.parse(ev("JSON.stringify(linkTrial('main'))"));
   assert.equal(ev('window.__n'), 1, 'one routing pass per check');

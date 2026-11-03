@@ -5,14 +5,14 @@ const { load, browser, flush } = require('./harness');
 // Two windows of one browser share localStorage, its storage events, a BroadcastChannel and Web Locks; a reload is a
 // new window with the same tab (sessionStorage).
 const settle = async (ev, cond, what) => { for (let i = 0; i < 400 && !ev(cond); i++) await new Promise((r) => setTimeout(r, 5)); assert.ok(ev(cond), what || cond); };
-const play = (ev, name, city = 'fra', days = 5) => ev(`UI.pitched=true;UI.nm=${JSON.stringify(name)};if($('nmIn'))$('nmIn').value=UI.nm;ACT.pickStart({city:'${city}'});ACT.start({});ACT.launchBB({city:'${city}'});for(let i=0;i<${days};i++)dayTick();save(true)`);
+const play = (ev, name, city = 'syd', days = 5) => ev(`UI.pitched=true;UI.nm=${JSON.stringify(name)};if($('nmIn'))$('nmIn').value=UI.nm;ACT.pickStart({city:'${city}'});ACT.start({});ACT.launchBB({city:'${city}'});for(let i=0;i<${days};i++)dayTick();save(true)`);
 const idx = (ev) => JSON.parse(ev("JSON.stringify(slotIdx())"));
 const card = (ev) => ev("document.getElementById('modalCard').textContent");
 
 // A save as the previous version wrote it: one key, no index.
 function legacySave() {
   const a = load();
-  a.ev("$('nmIn').value='Old Faithful';ACT.start({});ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});for(let i=0;i<30;i++)dayTick();UI.speed=2");
+  a.ev("$('nmIn').value='Old Faithful';ACT.start({});ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});for(let i=0;i<30;i++)dayTick();UI.speed=2");
   return { txt: a.ev('JSON.stringify(packSave((S.uiSpeed=UI.speed,S.cam={x:cam.x,y:cam.y,z:cam.z},S)))'), snap: a.ev('JSON.stringify([S.name,S.day,S.cash,S.asn,Object.keys(S.pops),S.transit.length])') };
 }
 
@@ -69,11 +69,11 @@ test('a compressed (gz) single save migrates and loads the same network', async 
 test('two networks coexist and load independently; the title lists them, newest first', async () => {
   const b = browser();
   const a = load({ browser: b });
-  play(a.ev, 'First Net', 'fra', 4);
+  play(a.ev, 'First Net', 'syd', 4);
   const first = a.ev('UI.slot');
   a.ev('ACT.toTitle()');
   assert.equal(a.ev('S'), null);
-  play(a.ev, 'Second Net', 'nyc', 9);
+  play(a.ev, 'Second Net', 'bne', 9);
   const second = a.ev('UI.slot');
   assert.notEqual(first, second);
   a.ev('ACT.toTitle()');
@@ -84,7 +84,7 @@ test('two networks coexist and load independently; the title lists them, newest 
   await settle(a.ev, 'UI.started===true');
   assert.equal(a.ev('S.name'), 'First Net');
   assert.equal(a.ev('S.day'), 4);
-  assert.equal(a.ev('S.home'), 'fra');
+  assert.equal(a.ev('S.home'), 'syd');
   a.ev('ACT.toTitle()');
   a.ev(`ACT.cont({id:'${second}'})`);
   await settle(a.ev, 'UI.started===true');
@@ -111,7 +111,7 @@ test('each tab continues its own network on reload, and two tabs play two networ
   const b = browser();
   const tab1 = new Map(), tab2 = new Map();
   const w1 = load({ browser: b, tab: tab1 });
-  play(w1.ev, 'Tab One', 'fra', 3);
+  play(w1.ev, 'Tab One', 'syd', 3);
   const w2 = load({ browser: b, tab: tab2 });
   await flush();
   assert.equal(w2.ev('!!UI.started'), false, 'the only network is open in tab one, so tab two shows the title');
@@ -145,7 +145,7 @@ test('each tab continues its own network on reload, and two tabs play two networ
 test('opening a network open in another window offers to switch or take over, and take-over hands it across', async () => {
   const b = browser();
   const w1 = load({ browser: b });
-  play(w1.ev, 'Shared Net', 'fra', 3);
+  play(w1.ev, 'Shared Net', 'syd', 3);
   const id = w1.ev('UI.slot');
   const w2 = load({ browser: b });
   await flush();
@@ -280,7 +280,7 @@ test('export the network on screen, or any network from the list; import adds a 
   a.dom.window.URL.createObjectURL = (blob) => { files.push(blob); return 'blob:x'; };
   const text = (blob) => new Promise((r) => { const f = new a.dom.window.FileReader(); f.onload = () => r(f.result); f.readAsText(blob); });
   a.dom.window.URL.revokeObjectURL = () => {};
-  play(a.ev, 'Exported Net', 'fra', 7);
+  play(a.ev, 'Exported Net', 'syd', 7);
   const first = a.ev('UI.slot');
   a.ev('ACT.exportSave({})');
   const txt = await text(files[0]);
@@ -312,76 +312,12 @@ test('renaming the network renames it in the list', () => {
   assert.equal(idx(a.ev)[0].name, 'After Rename');
 });
 
-test('puzzles never write a network, and a tab closed mid-puzzle keeps the network it set aside', async () => {
-  const b = browser();
-  const a = load({ browser: b });
-  // A puzzle from the title: nothing saved at all.
-  a.ev("ACT.pzStart({id:'hello'})");
-  a.ev("save(true);dispatchEvent(new Event('pagehide'))");
-  assert.equal(idx(a.ev).length, 0);
-  a.ev('ACT.pzLeave({})');
-  play(a.ev, 'Set Aside', 'fra', 3);
-  const id = a.ev('UI.slot');
-  a.ev("ACT.pzStart({id:'hello'})");
-  const kept = b.ls.get('sot-save-v1:' + id);
-  a.ev("S.pops.lon={day:0};save(true);for(let i=0;i<5;i++)frame(performance.now()+6000*i);dispatchEvent(new Event('pagehide'))");
-  assert.equal(b.ls.get('sot-save-v1:' + id), kept, 'the puzzle never writes the slot');
-  assert.equal(JSON.parse(kept).name, 'Set Aside');
-  assert.ok(b.ls.has('sot-puzzles') || true);
-  // The tab closes mid-puzzle; the next one continues the network.
-  b.close(a.dom.window);
-  const r = load({ browser: b });
-  await settle(r.ev, 'UI.started===true');
-  assert.equal(r.ev('S.name'), 'Set Aside');
-  assert.equal(r.ev('S.mode'), 'normal');
-  assert.deepEqual(a.errors, []);
-  assert.deepEqual(r.errors, []);
-});
-
-test('a big save still compressing when a puzzle starts lands in its network, and so does the next one', async () => {
-  const b = browser();
-  const a = load({ browser: b, gzip: true });
-  play(a.ev, 'Big One', 'fra', 1);
-  a.ev("S.cash=1e9;ACT.buildPop({city:'ams'});S.links.push({id:'df1',a:'fra',b:'ams',kind:'df',own:true,km:450,sys:'roadm',ch:[],ready:0,mo:500,day:0,cut:0});for(let i=0;i<12000;i++)S.biz.push({id:'h'+i,city:'fra',city2:'ams',name:'Huge Carrier '+i,type:'wwave',bw:1,rate:4000+i,mood:100,since:i,link:'df1',slots:1,what:''});compute()");
-  const id = a.ev('UI.slot');
-  a.ev("S.name='Big One v1';save(true);S.name='Big One v2';save(true)");// one compressing, one queued
-  a.ev("ACT.pzStart({id:'hello'})");
-  await settle(a.ev, '!UI.gzBusy&&!SLOT.gzQ.size');
-  const t = await a.dom.window.eval(`gunzip(slotRaw(${JSON.stringify(id)}))`);
-  assert.equal(JSON.parse(t).name, 'Big One v2', 'the queued save landed too');
-  a.ev('ACT.pzLeave({})');
-  assert.equal(a.ev('S.name'), 'Big One v2');
-  assert.deepEqual(a.errors, []);
-});
-
-test('leaving a puzzle when the network cannot be loaded marks it damaged, and Continue does not crash', async () => {
-  const b = browser();
-  const a = load({ browser: b });
-  play(a.ev, 'Fragile');
-  const id = a.ev('UI.slot');
-  a.ev("ACT.pzStart({id:'hello'})");
-  // The network set aside is gone from memory and its save is unreadable (another version, a broken disk…).
-  a.ev(`UI.pzKeep=null;localStorage.setItem(SLOT_K+${JSON.stringify(id)},'{"v":1,"day":"x","pops":7}')`);
-  a.ev(`window.__m=migrate;migrate=s=>{if(s&&s.pops===7)throw new Error('bad');return __m(s);}`);
-  a.ev('ACT.pzLeave({})');
-  a.ev('migrate=__m');
-  assert.match(a.ev("document.getElementById('toasts').textContent"), /could not be loaded/);
-  assert.equal(idx(a.ev)[0].broken, true);
-  assert.ok(b.ls.has('sot-save-v1:' + id), 'kept, so it can be exported');
-  a.ev(`ACT.cont({id:${JSON.stringify(id)}})`);
-  await flush();
-  assert.equal(a.ev('!!UI.started'), false);
-  a.ev('ACT.cont({})');
-  assert.match(card(a.ev), /Series/);
-  assert.deepEqual(a.errors, []);
-});
-
 test('a corrupted index is rebuilt from the saves themselves', async () => {
   const b = browser();
   const a = load({ browser: b });
-  play(a.ev, 'Alpha', 'fra', 2);
+  play(a.ev, 'Alpha', 'syd', 2);
   a.ev('ACT.toTitle()');
-  play(a.ev, 'Beta', 'nyc', 3);
+  play(a.ev, 'Beta', 'bne', 3);
   a.ev('ACT.toTitle()');
   b.ls.set('sot-slots', '{not json');
   b.ls.set('sot-save-v1:junk1', 'garbage');

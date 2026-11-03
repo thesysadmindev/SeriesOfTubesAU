@@ -7,7 +7,7 @@
 ## Decision
 
 The game is served by **GitHub Pages**, from the custom domain in `site/CNAME`
-(https://seriesoftub.es). That is the only hosting. There is no second host, no fallback host and no
+(upstream: https://seriesoftub.es; this fork: https://seriesoftubes.au/). That is the only hosting. There is no second host, no fallback host and no
 plan to move.
 
 Every change has to keep working there. A change that only works with a server, a different host,
@@ -34,8 +34,9 @@ Anything that needs data at runtime fetches it from the same origin as a static 
   The build may get slower; what it produces must stay plain static files. See
   [ADR 0002](0002-one-page-assembled-at-build.md).
 - **Same origin for everything the game loads.** The page, the dictionaries, icons and the service
-  worker all come from seriesoftub.es. The only cross-origin requests are the web fonts and the
-  privacy-friendly analytics counter (its script and its endpoint), and the game works without both.
+  worker all come from the site itself. The only cross-origin requests are the web fonts and the
+  visit counter (one request to GoatCounter's endpoint when the page opens, no script), and the game works
+  without both.
   Don't add more: no CDN-hosted libraries, no third-party APIs the game depends on.
 - **The service worker is the cache policy.** Since Pages decides HTTP caching, `site/sw.js` decides
   what is cached for offline play, versioned by the release.

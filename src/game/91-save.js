@@ -2,14 +2,11 @@
 /* A network too big for the browser's storage fails to save every time, and turning it into text takes a
    moment on huge saves, every 5 seconds and after every click. After a failure the autosave waits before trying
    again (1 minute, then 2, 4, at most 5); leaving the page, exporting or another game (a new S) still try at once. */
-/* A puzzle is never saved: only its stars are, under their own key (sot-puzzles). While one runs, the network it set
-   aside (UI.pzKeep) is the one saved, to its own slot, so closing the tab mid-puzzle loses nothing. */
-function save(force,st){if(!st)st=pzOn()?UI.pzKeep:S;const id=UI.slot;
-  if(!st||st.lost||st.mode==='puzzle'||!id||SLOT.no.has(id))return;
+function save(force,st){if(!st)st=S;const id=UI.slot;
+  if(!st||st.lost||!id||SLOT.no.has(id))return;
   if(st===S){S.uiSpeed=UI.speed;S.cam={x:cam.x,y:cam.y,z:cam.z};}const f=UI.saveFail,failed=f&&f.s===st;
   if(!force&&failed&&performance.now()-f.at<f.wait){UI.lastSave=performance.now();return;}
   UI.lastSave=performance.now();
-  // Set aside for a puzzle, it cannot change: once its save has landed (or is still compressing), there is nothing to do.
   if(st!==S&&!failed&&(SLOT.top[id]||0)>0)return;
   const txt=JSON.stringify(packSave(st));
   let tier=null;if(st===S)try{tier=tierLabel();}catch(e){}
@@ -17,7 +14,7 @@ function save(force,st){if(!st)st=pzOn()?UI.pzKeep:S;const id=UI.slot;
   if(txt.length>=GZ_MIN&&gzOk())gzSave(j);else slotPut(j,slotStamp(txt,seq));}
 function saveErr(e,s){const f=UI.saveFail,again=f&&f.s===s;UI.saveFail={s,at:performance.now(),wait:again?Math.min(300000,f.wait*2):60000,full:saveFull(e)};
   // Say so once per game (#176): a save that silently fails loses everything since the last one that worked.
-  if(!again&&(s===S||s===UI.pzKeep))toast(saveFailMsg(),'bad',[{l:tr('common.export_save'),act:'exportSave',args:{}},...(UI.saveFail.full&&slotOthers().length?[{l:tr('slots.free_up_space'),act:'slotSpace',args:{}}]:[])]);}
+  if(!again&&s===S)toast(saveFailMsg(),'bad',[{l:tr('common.export_save'),act:'exportSave',args:{}},...(UI.saveFail.full&&slotOthers().length?[{l:tr('slots.free_up_space'),act:'slotSpace',args:{}}]:[])]);}
 /* Saves of huge networks are gzipped by the browser (#176): about ten times smaller, so they fit in its storage.
    Compressing runs in the background, one at a time, and the newest save of each network wins; one that a newer save
    of the same network has overtaken meanwhile is dropped. Small saves stay plain JSON, written at once, as before. */
@@ -57,14 +54,15 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 function saveFileName(nm){const d=new Date().toISOString().slice(0,10),n=String(nm||'network').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'network';return `series-of-tubes-${n}-${d}.json`;}
 function saveDl(txt,nm){const blob=new Blob([txt],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=saveFileName(nm);document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   toast(tr('save.save_exported_file_is_in_your',{file:esc(saveFileName(nm))}),'good');}
-function exportSave(){if(!S||S.mode==='puzzle')return;save(true);saveDl(JSON.stringify({app:'series-of-tubes',version:APP_VERSION,exported:new Date().toISOString(),S:packSave(S)},null,1),S.name);}
+function exportSave(){if(!S)return;save(true);saveDl(JSON.stringify({app:'series-of-tubes',version:APP_VERSION,exported:new Date().toISOString(),S:packSave(S)},null,1),S.name);}
 // Any network on this device, straight from storage: the file wraps the saved text as it is, without loading it.
 function exportSlot(id){const e=slotIdx().find(x=>x.id===id),raw=slotRaw(id);if(!e||raw==null)return;
-  if(id===UI.slot&&S&&!pzOn()){exportSave();return;}
+  if(id===UI.slot&&S){exportSave();return;}
   (raw.startsWith(GZ)?gunzip(raw):Promise.resolve(raw)).then(t=>saveDl(`{"app":"series-of-tubes","version":${JSON.stringify(APP_VERSION)},"exported":"${new Date().toISOString()}","S":${t}}`,e.name),()=>toast(tr('loop.your_saved_game_could_not_be'),'bad'));}
 function parseSave(txt){if(typeof txt!=='string')return {err:tr('save.that_file_is_not_valid_json')};let j;try{j=JSON.parse(txt);}catch(e){return {err:tr('save.that_file_is_not_valid_json')};}
   const s=j&&j.app==='series-of-tubes'&&j.S?j.S:j;
   if(!s||typeof s!=='object'||s.v!==1||typeof s.day!=='number'||typeof s.cash!=='number'||!s.pops||typeof s.pops!=='object'||!Array.isArray(s.links))return {err:tr('save.that_does_not_look_like_a')};
+  if(worldSave(s))return {err:tr('save.that_save_is_from_the_old')};
   if(s.lost)return {err:tr('save.that_network_went_bankrupt_it_cannot')};
   for(const c of Object.keys(s.pops))if(!isCity(c))return {err:tr('save.that_save_has_a_pop_in',{city:esc(String(c).slice(0,12))})};
   return {s,ver:j.version||'?',name:String(s.name||tr('common.unnamed_network'))};}

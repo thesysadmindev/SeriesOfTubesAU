@@ -39,9 +39,9 @@ const METRICS = [
   ['compute', 'Routing: compute()', 'compute()'],
   ['day', 'One game day: dayTick()', 'S.nextFail=S.day+99;S.nextEvent=S.day+99;dayTick()'],
   ['action', 'An action: after()', 'after()'],
-  ['panels', 'Side panel and left list', "for(const f of [true,false]){UI.sel={type:'city',id:f?'fra':'ams'};UI.tab=f?'peer':'up';UI.left=f?'nets':'noc';UI.leftOpen=true;renderPanel();renderLeft();}"],
+  ['panels', 'Side panel and left list', "for(const f of [true,false]){UI.sel={type:'city',id:f?'syd':'mel'};UI.tab=f?'peer':'up';UI.left=f?'nets':'noc';UI.leftOpen=true;renderPanel();renderLeft();}"],
   ['dash', 'NOC dashboard tabs', "$('dash').hidden=false;for(const k of ['overview','conn','traffic','infra','cust']){UI.dtab=k;renderDash();}$('dash').hidden=true"],
-  ['map', 'Map at three zoom levels', "for(const z of [1,3.2,7]){cam.x=CITY.fra.x;cam.y=CITY.fra.y;cam.z=z;draw(0);}"],
+  ['map', 'Map at three zoom levels', "for(const z of [1,3.2,7]){cam.x=CITY.syd.x;cam.y=CITY.syd.y;cam.z=z;draw(0);}"],
 ];
 
 function open(file) {

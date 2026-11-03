@@ -9,7 +9,7 @@ const root = path.join(__dirname, '..');
 
 function playedGame() {
   const a = load();
-  a.ev("ACT.start({});ACT.launchBB({city:'fra'});for(let i=0;i<25;i++)dayTick();UI.speed=2;save()");
+  a.ev("ACT.start({});ACT.launchBB({city:'syd'});for(let i=0;i<25;i++)dayTick();UI.speed=2;save()");
   return { a, saved: a.ev("slotRaw(UI.slot)"), day: a.ev('S.day') };
 }
 
@@ -85,17 +85,17 @@ test('version comparison for the update banner', () => {
 
 test('#46 an update that adds networks gives a courtesy route, and Tier 1 is shown only while it is true', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1});compute()");
+  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1});compute()");
   assert.ok(ev('R.reach') > 0.99);
   assert.ok(Array.isArray(JSON.parse(ev('JSON.stringify(S.seen)'))), 'new games remember which networks existed');
   // a transit-free network that has never heard of two of today's networks
-  ev("S.transit=[];S.day=400;S.seen=S.seen.filter(id=>id!=='btt'&&id!=='sky');const s=JSON.parse(JSON.stringify(S));S=migrate(s);compute()");
-  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.grace.nets.sort())')), ['btt', 'sky']);
+  ev("S.transit=[];S.day=400;S.seen=S.seen.filter(id=>id!=='abb'&&id!=='npt');const s=JSON.parse(JSON.stringify(S));S=migrate(s);compute()");
+  assert.deepEqual(JSON.parse(ev('JSON.stringify(S.grace.nets.sort())')), ['abb', 'npt']);
   assert.equal(ev('S.grace.until'), 460);
-  assert.equal(ev('R.reachable.btt'), true, 'the courtesy route reaches a network from the update');
+  assert.equal(ev('R.reachable.abb'), true, 'the courtesy route reaches a network from the update');
   assert.equal(ev('R.reachable.cog'), false, 'but not networks the player already knew about');
   ev('S.day=461;compute()');
-  assert.equal(ev('R.reachable.btt'), false, 'it ends after 60 days');
+  assert.equal(ev('R.reachable.abb'), false, 'it ends after 60 days');
   // a save from before this change, with no record at all, gets the grace for everything it cannot reach
   ev("S.day=10;delete S.seen;delete S.grace;S=migrate(JSON.parse(JSON.stringify(S)));compute()");
   assert.ok(ev('S.grace.nets.length') > 50);
@@ -130,7 +130,7 @@ test('the big-network benchmark save loads cleanly and routes traffic', () => {
   const save = fs.readFileSync(path.join(__dirname, 'fixtures', 'big-network.json'), 'utf8');
   const { ev, errors } = load();
   ev(`S=migrate(JSON.parse(${JSON.stringify(save)}));UI.started=true;compute();renderAll()`);
-  assert.ok(ev('Object.keys(S.pops).length') >= 100 && ev('S.pni.length') >= 900 && ev('S.caches.length') >= 800, 'still a big network');
+  assert.ok(ev('Object.keys(S.pops).length') >= 121 && ev('S.pni.length') >= 250 && ev('S.caches.length') >= 800, 'still a big network');
   assert.ok(ev('R.served') > 10000, 'and it carries traffic');
   assert.deepEqual(errors, []);
 });

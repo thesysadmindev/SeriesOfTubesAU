@@ -1,7 +1,7 @@
 /* ================= INSTALL (PWA) ================= */
 let installEvt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;});
-addEventListener('appinstalled',()=>{installEvt=null;track('pwa_installed',true);if(UI.pendGame){const p=UI.pendGame;UI.pendGame=null;UI.pitched=true;beginGame(...p);}toast(tr('install.installed_open_series_of_tubes_from'),'good');});
+addEventListener('appinstalled',()=>{installEvt=null;if(UI.pendGame){const p=UI.pendGame;UI.pendGame=null;UI.pitched=true;beginGame(...p);}toast(tr('install.installed_open_series_of_tubes_from'),'good');});
 const isStandalone=()=>{try{return navigator.standalone===true||!!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);}catch(e){return false;}};
 const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function installRow(){if(isStandalone())return '';
@@ -20,4 +20,4 @@ function pitchHtml(starting){const ios=isIOS();
   <ul class="pitch"><li>🗺️ <b>${tr('common.full_screen')}</b> ${tr('install.no_browser_bars_a_lot_more')}</li><li>📶 <b>${tr('common.works_offline')}</b> ${tr('install.build_your_backbone_on_the_train')}</li>${ios?`<li>💾 <b>${tr('install.your_save_stays_safe')}</b> ${tr('install.safari_can_clear_the_data_of')}</li><li class="warn">⚠️ <b>${tr('common.install_first')}</b> ${tr('install.on_iphone_a_game_started_in')}</li>`:`<li>⚡ <b>${tr('install.one_tap_away')}</b> ${tr('install.it_opens_straight_into_your_network')}</li>`}</ul>
   ${installSteps()}
   <div class="btns cta" style="margin-top:12px">${installEvt?btn(tr('install.install_the_app'),'install',{},'pink big'):''}${starting?btn(tr('install.play_in_the_browser_anyway'),'pitchSkip',{},installEvt?'ghost':'ghost big'):btn(tr('common.got_it'),'closeModal',{},installEvt?'ghost':'pink')}</div>`;}
-if('serviceWorker' in navigator&&location.protocol==='https:'&&!IS_DEV)addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
+if('serviceWorker' in navigator&&location.protocol==='https:'&&!IS_DEV)addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});

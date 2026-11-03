@@ -3,25 +3,25 @@ const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 function setup(ev) {
-  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.pops.fra.rgen=RG_TOP;compute()");
+  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;S.pops.syd.rgen=RG_TOP;compute()");
 }
 
 test('global PNIs cover every eligible network and shared POP, including the long tail, in one transaction', () => {
   const { dom, ev, errors } = load();
   setup(ev);
-  ev(`ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG_TOP;
-    S.pni.push({id:'small',net:'cfl',city:'fra',tier:0,n:2,site:'ab',pref:'high'},
-      {id:'big',net:'drz',city:'ams',tier:2},
-      {id:'pending',net:'nfx',city:'fra',tier:1,ready:S.day+30});
+  ev(`ACT.buildPop({city:'mel'});S.pops.mel.rgen=RG_TOP;
+    S.pni.push({id:'small',net:'cfl',city:'syd',tier:0,n:2,site:'ab',pref:'high'},
+      {id:'big',net:'drz',city:'mel',tier:2},
+      {id:'pending',net:'nfx',city:'syd',tier:1,ready:S.day+30});
     compute();for(const n of NETS)R.demTo[n.id]=1e4`);
   const before = ev('JSON.stringify(S)');
   const batch = JSON.parse(ev('JSON.stringify(pniBatch(null,1))'));
   assert.equal(ev('JSON.stringify(S)'), before, 'global preview changes no game state');
-  assert.ok(batch.orders.some(q => q.net === 'cfl' && q.city === 'fra' && q.ex));
-  assert.ok(batch.orders.some(q => q.net === 'cfl' && q.city === 'ams' && !q.ex));
+  assert.ok(batch.orders.some(q => q.net === 'cfl' && q.city === 'syd' && q.ex));
+  assert.ok(batch.orders.some(q => q.net === 'cfl' && q.city === 'mel' && !q.ex));
   assert.ok(batch.orders.some(q => ev(`NET['${q.net}'].tail`)), 'small networks are included');
-  assert.equal(batch.orders.some(q => q.net === 'drz' && q.city === 'ams'), false, 'no downgrade');
-  assert.equal(batch.orders.some(q => q.net === 'nfx' && q.city === 'fra'), false, 'keep pending orders');
+  assert.equal(batch.orders.some(q => q.net === 'drz' && q.city === 'mel'), false, 'no downgrade');
+  assert.equal(batch.orders.some(q => q.net === 'nfx' && q.city === 'syd'), false, 'keep pending orders');
   const cash = ev('S.cash');
   ev("const originalAfter=after;window.after=()=>{window.afterCount=(window.afterCount||0)+1;originalAfter()};ACT.pniAll({net:null,tier:1})");
   assert.equal(ev('window.afterCount'), 1);
@@ -48,12 +48,12 @@ test('global PNIs share the available router ports, including four 10G breakouts
   for (const [tier, count] of [[1, 1], [0, 4]]) {
     const { dom, ev, errors } = load();
     setup(ev);
-    ev("S.pops.fra.rgen=0;S.caches=Array.from({length:7},()=>({id:uid(),city:'fra',net:'cfl'}));compute()");
+    ev("S.pops.syd.rgen=0;S.caches=Array.from({length:7},()=>({id:uid(),city:'syd',net:'cfl'}));compute()");
     assert.equal(ev(`pniBatch(null,${tier}).orders.length`), count);
     assert.ok(ev(`pniBatch(null,${tier}).blocked.some(q=>/No free router ports/.test(q.why))`));
     ev(`ACT.pniAll({net:null,tier:${tier}})`);
     assert.equal(ev('S.pni.length'), count);
-    assert.equal(ev("portsUsed('fra')"), 8);
+    assert.equal(ev("portsUsed('syd')"), 8);
     const cash = ev('S.cash');
     ev(`ACT.pniAll({net:null,tier:${tier}})`);
     assert.equal(ev('S.cash'), cash);
@@ -66,8 +66,8 @@ test('global planning reserves ports for pending speed and LAG augments without 
   for (const [tier, n] of [[1, 1], [0, 4]]) {
     const { dom, ev, errors } = load();
     setup(ev);
-    ev(`S.pops.fra.rgen=0;S.caches=Array.from({length:7},()=>({id:uid(),city:'fra',net:'cfl'}));
-      S.pni=[{id:'pending',city:'fra',net:'cfl',tier:0,n:1,up:{tier:${tier},n:${n},ready:S.day+30}}];compute()`);
+    ev(`S.pops.syd.rgen=0;S.caches=Array.from({length:7},()=>({id:uid(),city:'syd',net:'cfl'}));
+      S.pni=[{id:'pending',city:'syd',net:'cfl',tier:0,n:1,up:{tier:${tier},n:${n},ready:S.day+30}}];compute()`);
     const state = ev('JSON.stringify(S)');
     assert.equal(ev('pniBatch(null,0).orders.length'), 0);
     assert.equal(ev('pniBatch(null,1).orders.length'), 0);
@@ -139,7 +139,7 @@ test('the global batch, now in the Ops sheet, preserves scope, keyboard focus an
 test('bulk PNIs follow each network\'s own minimum port and lead time (pniMin, pniLead)', () => {
   const { ev, errors } = load();
   setup(ev);
-  ev("ACT.buildPop({city:'ams'});S.pops.ams.rgen=RG_TOP;compute();for(const n of NETS)R.demTo[n.id]=1e4");
+  ev("ACT.buildPop({city:'mel'});S.pops.mel.rgen=RG_TOP;compute();for(const n of NETS)R.demTo[n.id]=1e4");
   // Ask everyone for 10G: networks that start at 100G get 100G, the rest get 10G.
   const b = JSON.parse(ev('JSON.stringify(pniBatch(null,0))'));
   const big = b.orders.filter(q => ev(`pniMin('${q.net}')`) > 0), small = b.orders.filter(q => ev(`pniMin('${q.net}')`) === 0);
@@ -149,7 +149,7 @@ test('bulk PNIs follow each network\'s own minimum port and lead time (pniMin, p
   assert.equal(b.raised, big.length);
   assert.equal(b.blocked.some(q => /does not do/.test(q.why)), false, 'nobody is blocked for the size alone');
   // A single network still refuses a port below its minimum.
-  const t1 = ev("NETS.find(n=>pniMin(n.id)>0&&n.pops.includes('fra')).id");
+  const t1 = ev("NETS.find(n=>pniMin(n.id)>0&&n.pops.includes('syd')).id");
   const one = JSON.parse(ev(`JSON.stringify(pniBatch('${t1}',0))`));
   assert.equal(one.orders.length, 0);
   assert.ok(one.blocked.length > 0);

@@ -16,58 +16,22 @@ test('sandbox: endless money, every unlock, nothing breaks, no badges', () => {
   assert.deepEqual(errors, []);
 });
 
-test('scenarios: rules apply, goals complete, deadlines fail, seeds repeat', () => {
-  const { ev, errors } = load();
-  ev("ACT.scenarios()");
-  assert.match(ev("document.getElementById('modalCard').textContent"), /Weekly challenge/);
-  ev("ACT.startScn({id:'stg'})");
-  assert.equal(ev("S.home"), 'stg');
-  ev("ACT.buyTransit({city:'stg',net:'drz',tier:1})");
-  assert.equal(ev("S.transit.length"), 0, 'no transit in the Spätzle-IX scenario');
-  ev("ACT.startScn({id:'redsea',sure:1})");
-  assert.equal(ev("cablesOk('mrs','sin').length"), 0, 'Red Sea routes are gone');
-  assert.ok(ev("cablesFor('mrs','sin').length") > 0);
-  ev("ACT.startScn({id:'carnaval',sure:1})");
-  assert.ok(ev("S.biz.some(b=>b.type==='event'&&b.start===90)"), 'Carnaval is pre-booked');
-  ev("S.day=99;S.scn.done=0;dayTick()");
-  assert.ok(ev("!!S.scn.failed"), 'deadline passes');
-  assert.match(ev("document.getElementById('modalCard').textContent"), /Time's up/);
-  // weekly: same seed gives the same first random numbers
-  ev("ACT.startWeekly({sure:1})");const a = ev("[Math.random(),Math.random()].join()");
-  ev("ACT.startWeekly({sure:1})");const b = ev("[Math.random(),Math.random()].join()");
-  assert.equal(a, b);
-  ev("S.stats.peak=1234;S.day=364;dayTick()");
-  assert.match(ev("document.getElementById('modalCard').textContent"), /score/i);
-  assert.ok(ev("!!JSON.parse(localStorage.getItem('sot-scn')).weekly"));
-  assert.deepEqual(errors, []);
-});
-
-test('completing a scenario records it and unlocks a badge', () => {
-  const { ev, errors } = load();
-  ev("localStorage.removeItem('sot-scn');ACT.startScn({id:'spat'});R.reach=1;R.served=200;scnTick(10)");
-  assert.equal(ev("S.scn.done"), 10);
-  assert.ok(ev("!!JSON.parse(localStorage.getItem('sot-scn')).spat"));
-  ev("checkBadges()");
-  assert.ok(ev("S.ach.scen1!==undefined"));
-  assert.deepEqual(errors, []);
-});
-
 test('traceroute shows hops, the exit and the AS path', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buildPop({city:'ams'});UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal();ACT.buyTransit({city:'ams',net:'lvl',tier:1});ACT.buyIx({city:'fra',tier:1,signed:true});ACT.rs({city:'fra'});compute()");
-  let r = JSON.parse(ev("JSON.stringify(traceroute('fra',{net:'nfx'}))"));
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
+  ev("ACT.buildPop({city:'mel'});UI.via=null;openLinkModal('syd','mel');ACT.buildLink({tier:1});closeModal();ACT.buyTransit({city:'mel',net:'tsy',tier:1});ACT.buyIx({city:'syd',tier:1});ACT.rs({city:'syd'});compute()");
+  let r = JSON.parse(ev("JSON.stringify(traceroute('syd',{net:'nfx'}))"));
   assert.match(r.text, /traceroute to/);
-  assert.match(r.text, /ams/, 'goes via Amsterdam to transit');
-  assert.deepEqual(r.asPath.slice(0, 2), [ev('S.asn'), ev("NET.lvl.asn")]);
-  r = JSON.parse(ev("JSON.stringify(traceroute('fra',{net:'akm'}))"));
+  assert.match(r.text, /mel/, 'goes via Melbourne to transit');
+  assert.deepEqual(r.asPath.slice(0, 2), [ev('S.asn'), ev("NET.tsy.asn")]);
+  r = JSON.parse(ev("JSON.stringify(traceroute('syd',{net:'akm'}))"));
   assert.match(r.why, /peering/i, 'open network over the IX route server');
-  r = JSON.parse(ev("JSON.stringify(traceroute('ams',{city:'fra'}))"));
-  assert.match(r.text, /fra/);
+  r = JSON.parse(ev("JSON.stringify(traceroute('mel',{city:'syd'}))"));
+  assert.match(r.text, /syd/);
   ev("S.links[0].cut=S.day+3;compute()");
-  r = JSON.parse(ev("JSON.stringify(traceroute('fra',{net:'nfx'}))"));
+  r = JSON.parse(ev("JSON.stringify(traceroute('syd',{net:'nfx'}))"));
   assert.ok(/unreachable/.test(r.text) || /peering/i.test(r.why));
-  ev("ACT.trace({city:'fra'})");
+  ev("ACT.trace({city:'syd'})");
   assert.match(ev("document.getElementById('modalCard').textContent"), /Traceroute/);
   ev("ACT.share()");
   assert.deepEqual(errors, []);
@@ -76,14 +40,14 @@ test('traceroute shows hops, the exit and the AS path', () => {
 test('conferences: register, attend, and selective peers get easier for a while', () => {
   const { ev, errors } = load();
   ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0");
-  ev("S.day=confDay(CONFS.find(c=>c.c==='fra'),0)-20;ACT.leftTab({t:'deals'})");
-  assert.match(ev("document.body.textContent"), /DENOG/);
-  const key = ev("upcomingConfs(30).find(c=>c.c==='fra').key");
+  ev("S.day=confDay(CONFS.find(c=>c.c==='syd'),0)-20;ACT.leftTab({t:'deals'})");
+  assert.match(ev("document.getElementById('left').textContent"), /AusNOG/, "the Deals tab lists Sydney's conference");
+  const key = ev("upcomingConfs(30).find(c=>c.c==='syd').key");
   ev(`ACT.confGo({key:'${key}'})`);
-  const need0 = ev("(()=>{R.demTo.nfx=0;return peerOk('nfx','ix','fra').why})()");
+  const need0 = ev("(()=>{R.demTo.nfx=0;return peerOk('nfx','ix','syd').why})()");
   ev("for(let i=0;i<21;i++)dayTick()");
   assert.ok(ev("S.conf&&S.conf.until>S.day"), 'conference glow is on');
-  const need1 = ev("(()=>{R.demTo.nfx=0;return peerOk('nfx','ix','fra').why})()");
+  const need1 = ev("(()=>{R.demTo.nfx=0;return peerOk('nfx','ix','syd').why})()");
   assert.notEqual(need0, need1, 'threshold dropped');
   ev("checkGoals()");
   assert.ok(ev("S.ach.hallway!==undefined"));
@@ -98,6 +62,11 @@ test('the guided tutorial walks through the first steps and can be skipped', () 
   assert.match(ev("document.getElementById('coach').textContent"), /Launch broadband/);
   ev("ACT.launchBB({city:S.home});renderAll()");
   assert.match(ev("document.getElementById('coach').textContent"), /Step 2/);
+  // Past the first link, the NBN: a POI near home, its POP and an NNI port.
+  ev("S.tut=5;S.links.push({id:'x',a:'syd',b:'2cmp',kind:'wave',tier:0,km:50,mo:1,cut:0});renderAll()");
+  assert.match(ev("document.getElementById('coach').textContent"), /Reach the NBN/);
+  ev("S.cash=1e6;ACT.buildPop({city:'2cmp'});ACT.nniOrder({city:'2cmp',t:0});renderAll()");
+  assert.doesNotMatch(ev("document.getElementById('coach').textContent"), /Reach the NBN/, 'done once an NNI is ordered');
   ev("ACT.tutSkip()");
   assert.equal(ev("document.getElementById('coach').hidden"), true);
   assert.equal(ev("localStorage.getItem('sot-tut')"), '1');
@@ -133,13 +102,13 @@ test('half speed and deeper zoom', () => {
   assert.equal(ev("UI.speed"), 0.5, 'bogus speeds are ignored');
   ev("cam.z=1;for(let i=0;i<40;i++)zoomAt(100,100,1.2)");
   assert.equal(ev("cam.z"), ev("ZMAX"), 'zooming in stops at the maximum');
-  assert.ok(ev("ZMAX") >= 16, 'deep enough for dense regions (#126)');
+  assert.ok(ev("ZMAX") >= 48, 'deep enough for dense regions (#126) and the POIs crowded in the capitals');
   assert.deepEqual(errors, []);
 });
 
 test('the map draws at every zoom, with and without animations, without throwing', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;ACT.launchBB({city:'fra'});for(const c of ['ams','lon','nyc'])ACT.buildPop({city:c});UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal();compute()");
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;ACT.launchBB({city:'syd'});for(const c of ['mel','hba','bne'])ACT.buildPop({city:c});UI.via=null;openLinkModal('syd','mel');ACT.buildLink({tier:1});closeModal();compute()");
   for (const z of [0.35, 0.8, 1.4, 3, 6]) ev(`cam.z=${z};draw(performance.now());draw(0)`);
   ev("ACT.animSet({v:'off'});frame(performance.now()+16)");
   assert.ok(ev("ctx&&ctx.calls.n") > 100, 'the canvas was actually drawn on');
@@ -148,14 +117,14 @@ test('the map draws at every zoom, with and without animations, without throwing
 
 test('RouteScript: parses safely, reports errors helpfully, and changes routing', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
+  ev("ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyTransit({city:'syd',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
   let p = JSON.parse(ev("JSON.stringify(teParse('spill at 80%\\ncap transit cogentle at 3 gbps\\nprefer ix for goggle\\nnonsense here\\navoid transit for gogle'))"));
   assert.equal(p.errors.length, 2, 'the nonsense line and the typo fail');
   assert.match(p.errors[1], /Did you mean Goggle/, 'typos get a suggestion');
   p = JSON.parse(ev("JSON.stringify(teParse('avoid transit for zzzzqqq').errors)"));
   assert.match(p[0], /unknown network/);
-  assert.match(ev("teParse('drain pariss').errors[0]"), /Did you mean Paris/);
+  assert.match(ev("teParse('drain adelade').errors[0]"), /Did you mean Adelaide/);
   assert.equal(ev("teParse('alert(1)').n"), 0, 'nothing is ever evaluated');
   const cog = "R.useT[S.transit.find(t=>t.net==='cog').id]||0";
   const before = ev(cog);
@@ -163,7 +132,7 @@ test('RouteScript: parses safely, reports errors helpfully, and changes routing'
   assert.ok(ev(cog) <= 3.0001 && before > 3, `Cogentle capped (${before} -> ${ev(cog)})`);
   assert.ok(ev("R.useT[S.transit.find(t=>t.net==='lvl').id]") > 0, 'overflow went to the other upstream');
   // a fat-fingered deploy earns its badge
-  ev("ACT.teEdit();document.getElementById('teSrc').value='drain frankfurt\\ncap transit level tree at 0 gbps\\ncap transit cogentle at 0 gbps';ACT.teDeploy();checkGoals()");
+  ev("ACT.teEdit();document.getElementById('teSrc').value='drain sydney\\ncap transit level tree at 0 gbps\\ncap transit cogentle at 0 gbps';ACT.teDeploy();checkGoals()");
   assert.ok(ev("S.ach.fat!==undefined"));
   // errors block a deploy
   ev("ACT.teEdit();document.getElementById('teSrc').value='spill at 5%';ACT.teDeploy()");
@@ -175,9 +144,10 @@ test('RouteScript: parses safely, reports errors helpfully, and changes routing'
 
 test('RouteScript BGP: local-pref and prepending move transit, protected customers go first, the optimizer drafts a script', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();for(let i=0;i<30;i++)dayTick();compute()");
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
+  ev("ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyTransit({city:'syd',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();for(let i=0;i<30;i++)dayTick();compute()");
   const use = n => ev(`R.useT[S.transit.find(t=>t.net==='${n}').id]||0`);
+  assert.match(ev('teOptimize()'), /peers at IX Straya/, 'the optimizer points at the exchange where your transit traffic peers');
   const p = JSON.parse(ev("JSON.stringify(teParse('prefer transit level tree\\navoid transit cogentle\\nprepend transit cogentle 2\\nprotect customers\\nprepend transit cogentle 9'))"));
   assert.equal(p.n, 4);
   assert.match(p.errors[0], /prepend 1 to 3/);
@@ -190,21 +160,20 @@ test('RouteScript BGP: local-pref and prepending move transit, protected custome
   assert.ok(use('lvl') < tot * 0.5 && use('cog') > 0, 'prepending moves traffic off, but not all of it');
   assert.ok(Math.abs(use('lvl') + use('cog') - tot) < 0.5, 'nothing is lost');
   // Congest the city, then protect business customers: they keep their service, home users take the hit.
-  ev("S.biz.push({id:uid(),city:'fra',city2:null,reqs:[],name:'Test DIA',type:'dia',bw:5,rate:600,mood:100,since:0});S.pops.fra.bb.d*=40;S.te.script='';compute()");
+  ev("S.biz.push({id:uid(),city:'syd',city2:null,reqs:[],name:'Test DIA',type:'dia',bw:5,rate:600,mood:100,since:0});S.pops.syd.bb.d*=40;S.te.script='';compute()");
   const plain = ev("bizSf(S.biz[S.biz.length-1])");
   assert.ok(plain < 0.95, `the city is congested (${plain})`);
   ev("S.te.script='protect customers';compute()");
   assert.ok(ev("bizSf(S.biz[S.biz.length-1])") >= 0.95, 'protected customer stays happy (95%+ served)');
-  assert.ok(ev("sfOf(R,'fra')") <= plain + 0.01, 'the city as a whole is not better off');
+  assert.ok(ev("sfOf(R,'syd')") <= plain + 0.01, 'the city as a whole is not better off');
   const draft = ev('teOptimize()');
   assert.match(draft, /spill at 85%/);
   assert.match(draft, /protect customers/);
   assert.match(draft, /prefer transit cogentle/);
-  assert.match(draft, /peers at DE-KICKS/);
   assert.equal(ev('teParse(teOptimize()).errors.length'), 0, 'the draft is a valid script');
   // With room to spare, protecting customers would only cost a second routing pass, so it is not suggested.
-  ev("S.pops.fra.bb.d=5;S.te.script='';compute()");
-  assert.ok(ev("sfOf(R,'fra')") >= 0.95);
+  ev("S.pops.syd.bb.d=5;S.te.script='';compute()");
+  assert.ok(ev("sfOf(R,'syd')") >= 0.95);
   assert.doesNotMatch(ev('teOptimize()'), /protect customers/);
   ev("S.te.script='';ACT.teEdit();ACT.teOpt()");
   assert.match(ev("document.getElementById('teSrc').value"), /Suggested by the optimizer/);
@@ -293,32 +262,21 @@ test('the installed app and desktop browsers start straight away', () => {
   }
 });
 
-test('#34 scenario goal, progress and customer level are always in view', () => {
+test('#34 the customer level is always in view, and no puzzles or scenarios are left in the menus', () => {
   const { ev, dom, errors } = load();
-  ev("ACT.startScn({id:'darien',sure:1})");
+  ev('ACT.start({})');
   ev("UI.left='goals';UI.leftOpen=true;UI.sel=null;renderAll()");
-  const left = () => dom.window.document.getElementById('leftBody').textContent;
-  assert.match(left(), /Mind the Gap/);
-  assert.match(left(), /Bogotá on your network/);
-  assert.match(left(), /days left/);
-  assert.match(left(), /Customer level 1 of 13/);
-  assert.equal(ev("$('hScn').hidden"), false, 'scenario chip in the top bar');
-  const f0 = ev('scnProg().f');
-  ev("S.cash=1e8;UI.via='pccs';openLinkModal('pan','bog');ACT.buildLink({tier:1});closeModal();compute();renderAll()");
-  assert.ok(ev('scnProg().f') > f0, 'progress moves when a goal step is reached');
-  assert.match(ev("$('hScnVal').textContent"), /%/);
+  assert.match(dom.window.document.getElementById('leftBody').textContent, /Customer level 1 of 13/);
   assert.match(ev("$('hTier').textContent"), /Lv 1/);
-  // every scenario has measurable progress
-  for (const id of JSON.parse(ev("JSON.stringify(SCN.filter(s=>s.ok).map(s=>s.id))"))) {
-    ev(`ACT.startScn({id:'${id}',sure:1})`);
-    const P = JSON.parse(ev('JSON.stringify(scnProg())'));
-    assert.ok(P && P.items.length > 0, `${id} shows progress`);
-  }
-  ev('ACT.startWeekly({sure:1})');
-  assert.match(ev('scnCard()'), /score/);
+  assert.equal(ev("!!document.getElementById('hScn')||!!document.getElementById('pzBox')"), false, 'no scenario chip or puzzle card');
+  ev('ACT.menu()');
+  const menu = dom.window.document.getElementById('modalCard').innerHTML;
+  assert.doesNotMatch(menu, /data-act="(puzzleMenu|scenarios)"/, 'the menu has no puzzles or scenarios');
+  ev('closeModal();showTitle()');
+  assert.deepEqual(JSON.parse(ev("JSON.stringify([...document.querySelectorAll('#modal .door')].map(d=>d.dataset.door))")), ['sandbox', 'normal'], 'two doors on the title screen');
+  assert.equal(ev("typeof ACT.puzzleMenu+typeof ACT.scenarios+typeof ACT.startScn+typeof ACT.startWeekly"), 'undefinedundefinedundefinedundefined');
   assert.deepEqual(errors, []);
 });
-
 test('NOC dashboard has a tab bar for its sections', () => {
   const { ev, errors } = load();
   ev("ACT.start({});ACT.dash()");
@@ -351,90 +309,21 @@ test('a brand-new phone player can click through the install pitch and the title
   assert.deepEqual(errors, []);
 });
 
-test('Flood Season: attacks keep coming, grow, and only count when service held', () => {
+test('there is no chat link: not on the title screen, in the menu or in How to play', () => {
   const { ev, errors } = load();
-  ev("ACT.startScn({id:'flood',sure:1})");
-  assert.equal(ev("S.scn.id"), 'flood');
-  assert.ok(ev('S.lvl') >= 4, 'starts with bigger gear unlocked: a 10T scrubbing center');
-  // a few weeks in: several attacks start on their own schedule
-  let n = 0;
-  for (let i = 0; i < 40; i++) { ev('dayTick()'); if (ev('ddosAll().some(a=>a.start===S.day)')) n++; }
-  assert.ok(n >= 4, `attacks keep coming (${n} in 40 days)`);
-  assert.ok(ev('(S.stats.ddosOk||0)+(S.stats.ddosLost||0)') >= 3, 'finished attacks are scored');
-  // Scoring: held only if the target got 97% and nobody else lost 1%; a flood you blackhole is sacrificed, not held.
-  ev("S.stats.ddosOk=0;S.stats.ddosOkBig=0;S.stats.ddosLost=0;S.stats.ddosSac=0;ddosDone({city:'ams',gbps:1500,worst:0.99});ddosDone({city:'ams',gbps:20,worst:0.5});ddosDone({city:'ams',gbps:30,worst:1,colMax:0.05});ddosDone({city:'ams',gbps:40,worst:0,sac:1})");
-  assert.equal(ev('S.stats.ddosOk'), 1);
-  assert.equal(ev('S.stats.ddosOkBig'), 1, 'a terabit flood held counts as terabit');
-  assert.equal(ev('S.stats.ddosLost'), 2, 'the target down, or everyone else hurt');
-  assert.equal(ev('S.stats.ddosSac'), 1);
-  const P = JSON.parse(ev('JSON.stringify(scnProg())'));
-  assert.match(P.items.map((x) => x.l).join(' '), /Floods held.*Terabit floods held/);
-  ev('S.stats.ddosOk=20;S.stats.ddosOkBig=5;scnTick(S.day)');
-  assert.ok(ev('!!S.scn.done'), 'the goal completes');
-  assert.deepEqual(errors, []);
-});
-
-test('DKNOG in Copenhagen is on the conference calendar', () => {
-  const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0");
-  const cf = JSON.parse(ev("JSON.stringify(CONFS.find(c=>c.n==='DKNOG'))"));
-  assert.equal(cf.c, 'cph');
-  assert.equal(ev(`MONTHS[${cf.m}]`), 'Mar', 'held in March, like the real one');
-  ev(`S.day=confDay(CONFS.find(c=>c.n==='DKNOG'),0)-20;ACT.leftTab({t:'deals'})`);
-  assert.match(ev("document.body.textContent"), /DKNOG/);
-  const key = ev("upcomingConfs(30).find(c=>c.n==='DKNOG').key");
-  ev(`ACT.confGo({key:'${key}'})`);
-  ev("for(let i=0;i<21;i++)dayTick()");
-  assert.equal(ev("S.conf&&S.conf.reg"), 'EU', 'the glow helps with European peers');
-  assert.match(ev("S.log.map(e=>e.t).join(' | ')"), /just one more drink/, 'and the evening went as DKNOG evenings go');
-  assert.deepEqual(errors, []);
-});
-
-test('the Signal group is linked from the title screen, the menu and How to play, in every language', () => {
-  for (const lang of ['en', 'it', 'pt', 'fr', 'es', 'de']) {
-    const { ev, errors } = load(lang === 'en' ? {} : { lang });
-    const links = (setup) => ev(`(()=>{${setup};return [...document.querySelectorAll('#modal a[href^="https://signal.group/#"]')].map(a=>a.target+'|'+a.rel+'|'+a.textContent.trim()).join('\\n');})()`);
-    const title = links('showTitle()');
-    assert.match(title, /^_blank\|noopener\|/, `${lang}: title footer links the group in a new tab`);
-    ev('ACT.start({})');
-    for (const [where, setup] of [['menu', 'ACT.menu()'], ['help', 'showHelp()']]) {
-      const l = links(setup);
-      assert.equal(l.split('\n').length, 1, `${lang}: one chat card in ${where}`);
-      if (lang !== 'en') assert.doesNotMatch(l, /Join the NOC chat/, `${lang}: ${where} card is translated`);
-    }
-    assert.deepEqual(errors, []);
-  }
-});
-
-test('#114 Only Spätzle-IX can be won by peering alone', () => {
-  const { ev, errors } = load();
-  ev("ACT.startScn({id:'stg',sure:1})");
-  assert.equal(ev("scnRule('local')&&scnRule('noTransit')"), true);
-  assert.match(ev("SCN.find(x=>x.id==='stg').goal"), /50%.*300 Gbps/);
-  assert.deepEqual(JSON.parse(ev("JSON.stringify(scnProg().items.map(x=>x.max))")), [0.5, 300]);
-  // a game saved before the fix picks the rule up on load
-  ev("const o=JSON.parse(JSON.stringify(S));delete o.scn.rules.local;migrate(o);window.__mig=o.scn.rules.local");
-  assert.equal(ev('window.__mig'), true);
-  // peering only, Stuttgart and Frankfurt: broadband grows instead of draining away
-  ev("S.cash=1e7;ACT.buyIx({city:'stg',tier:1,signed:true});ACT.peerAll({city:'stg'});ACT.launchBB({city:'stg'})");
-  ev("ACT.buildPop({city:'fra'});UI.via=null;openLinkModal('stg','fra');ACT.buildLink({tier:1});closeModal();for(const x of ixIdsIn('fra'))ACT.buyIx({city:x,tier:1,signed:true});ACT.launchBB({city:'fra'})");
-  const tick = (n) => { for (let i = 0; i < n; i++) { ev('dayTick()'); if (i % 5 === 0) ev("for(const x of Object.keys(S.ixp))ACT.peerAll({city:x})"); } };
-  tick(20);
-  const early = ev('R.served');
-  assert.ok(ev('R.reach') < 0.9, 'far from the whole internet');
-  tick(60);
-  assert.ok(ev('R.served') > early * 1.5, `customers stay and grow (${early.toFixed(1)} → ${ev('R.served').toFixed(1)} Gbps)`);
-  assert.ok(ev("sfOf(R,'stg')") >= 0.9);
-  // the rule stays inside this scenario
-  ev("ACT.start({})");
-  assert.equal(ev("scnRule('local')"), false);
+  const chat = () => ev("document.querySelectorAll('#modal a[href*=\"signal.group\"]').length");
+  ev('showTitle()');
+  assert.equal(chat(), 0, 'title');
+  assert.doesNotMatch(ev("document.getElementById('modalCard').textContent"), /Signal/);
+  ev('ACT.start({})');
+  for (const s of ['ACT.menu()', 'showHelp()']) { ev(s); assert.equal(chat(), 0, s); }
   assert.deepEqual(errors, []);
 });
 
 test('RouteScript: help, ready-made scripts and the AI button', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'fra',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
+  ev("ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyTransit({city:'syd',net:'lvl',tier:1});ACT.coreUp();ACT.coreUp();ACT.buyTE();compute()");
   // every ready-made script parses on a real network and is listed in the help
   for (const id of JSON.parse(ev('JSON.stringify(TE_RECIPES.map(r=>r.id))')))
     assert.deepEqual(JSON.parse(ev(`JSON.stringify(teParse(TE_RECIPES.find(r=>r.id==='${id}').src().join('\\n')).errors)`)), [], id);
@@ -470,28 +359,3 @@ test('RouteScript: help, ready-made scripts and the AI button', () => {
   assert.deepEqual(errors, []);
 });
 
-
-test('Flood Season keeps attacking and escalating after both success and timeout', () => {
-  for (const outcome of ['done', 'failed']) {
-    const { ev, errors, dom } = load();
-    ev("ACT.startScn({id:'flood',sure:1});S.cash=1e9;S.nextFail=1e9;S.nextEvent=1e9");
-    if (outcome === 'done') ev('S.stats.ddosOk=20;S.stats.ddosOkBig=5;S.day=100');
-    else ev('S.day=365');
-    ev('scnTick(S.day)');
-    assert.ok(ev(`!!S.scn.${outcome}`));
-    assert.ok([...dom.window.document.querySelectorAll('#modal [data-act="closeModal"]')].some(b=>b.textContent==='Keep playing'));
-    ev('ACT.closeModal();S.scn.nextDdos=S.day+1;dayTick()');
-    assert.equal(ev('S.ev.ddos.start'), ev('S.day'), 'Keep playing still spawns attacks');
-    const before = ev('S.day');
-    ev('S.scn.nextDdos=S.day+1;S.day+=8;dayTick()');
-    assert.ok(ev('ddosAll().at(-1).start') > before, 'subsequent attacks keep coming');
-    // Escalating frequency belongs to spicy chaos; calmer games keep the old 3 to 7 days.
-    ev("S.rules.chaos='spicy'");
-    const gaps = JSON.parse(ev('const old=Math.random;Math.random=()=>0.5;S.day=0;const early=floodGap();S.day=1000;const late=floodGap();Math.random=old;JSON.stringify([early,late])'));
-    assert.ok(gaps[1] < gaps[0], 'frequency keeps increasing with scenario age');
-    const sizes = JSON.parse(ev('const old=Math.random;Math.random=()=>0.2;S.day=0;ddosAttack();const early=ddosAll().at(-1).gbps;S.day=1000;ddosAttack();const late=ddosAll().at(-1).gbps;Math.random=old;JSON.stringify([early,late])'));
-    assert.ok(sizes[1] > sizes[0], 'intensity keeps increasing with scenario age');
-    assert.deepEqual(errors, []);
-    dom.window.close();
-  }
-});

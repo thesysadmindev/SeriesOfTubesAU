@@ -12,7 +12,7 @@ const REQS={
  local:{l:tr('requirements.local_breakout_transit_or_an_ix'),bonus:.2,ip:true,ok:b=>S.transit.some(t=>t.city===b.city)||hasIxAt(b.city)||(isTier1()&&S.pni.some(p=>p.city===b.city))},
  metro:{l:tr('requirements.two_data_centers_in_every_metro'),bonus:.2,only:true,ok:b=>[b.city,b.city2].filter(Boolean).every(c=>S.pops[c]&&S.pops[c].site2)},
  twoup:{l:tr('requirements.wants_two_different_transit'),bonus:.15,ip:true,ok:()=>new Set(S.transit.map(t=>t.net)).size>=2||S.transit.length===0},
- china:{l:tr('requirements.needs_low_loss_reach_into_china'),bonus:.3,ip:true,ok:()=>S.transit.some(premOn)||S.links.some(l=>l.premium)||S.pni.some(p=>NET[p.net].cn&&pniOn(p))},
+ china:{l:tr('requirements.needs_low_loss_reach_into_china'),bonus:.3,ip:true,ok:()=>S.pni.some(p=>NET[p.net].cn&&pniOn(p))},
  scrubbed:{l:tr('requirements.will_only_sign_with_a_network'),bonus:.15,ok:()=>hasScrub()},
  scrubnear:{l:tr('requirements.wants_a_scrubbing_center_on_its'),bonus:.15,ip:true,ok:b=>S.scrubs.some(x=>CITY[x.city].reg===CITY[b.city].reg)},
  puns:{l:tr('requirements.their_ceo_hates_puns_please_do'),bonus:.05,ok:()=>true},
@@ -35,21 +35,21 @@ function disjointRoutes(a,b,live){const srlg=l=>l.kind==='vxc'?'fab:'+l.prov:(l.
 let diversityMap=null;
 function diversityPossible(a,b,state=S){
   if(!CITY[a]||!CITY[b]||a===b)return false;
-  const rules=state.scn&&state.scn.rules||{},key=JSON.stringify([!!state.won,rules]);
+  const key=JSON.stringify([!!state.won]);
   if(!diversityMap||diversityMap.key!==key){
-    /* Built once per ruleset, over every city pair, so it runs on the first load of every save: on city indices, with
+    /* Built once (and again on going Tier 1), over every city pair, so it runs on the first load of every save: on city indices, with
        the cables between each pair from a table. A link is the number of its risk: each land trench and your own cable
        on its own, every segment of one cable (or one fabric) the same; adj[i] lists [neighbour, risk] in the order the
        links were added, as a graph built from a list of them would. */
-    const cities=CITIES.filter(c=>!(rules.banCities||[]).includes(c.id)).map(c=>c.id),N=cities.length,ix=new Map(cities.map((c,i)=>[c,i]));
+    const cities=CITIES.map(c=>c.id),N=cities.length,ix=new Map(cities.map((c,i)=>[c,i]));
     const cab=new Map();for(const c of CABLE_PAIRS){const k=c.a<c.b?c.a+'|'+c.b:c.b+'|'+c.a;let L=cab.get(k);if(!L)cab.set(k,L=[]);L.push(c);}
-    const LS=cities.map(c=>lands(CITY[c])),land=cities.map(landing),cn=cities.map(cnCity),fab=cities.map(c=>FABS.filter(f=>f.cities.includes(c))),ban=rules.banPairs||[];
+    const LS=cities.map(c=>lands(CITY[c])),land=cities.map(landing),fab=cities.map(c=>FABS.filter(f=>f.cities.includes(c)));
     const adj=cities.map(()=>[]),grp=new Map();let n=0,k=0;const add=(i,j,g)=>{let r;if(g===undefined)r=k++;else{r=grp.get(g);if(r===undefined)grp.set(g,r=k++);}adj[i].push(j,r);adj[j].push(i,r);n++;};
     for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
       const a=cities[i],b=cities[j],cs=cab.get(a<b?a+'|'+b:b+'|'+a),sub=!LS[i].some(x=>LS[j].includes(x));
       if(!sub){add(i,j);add(i,j);}
-      if(cs)for(const c of cs)if(!ban.some(p=>p===c.cid+':'+a+'-'+b||p===c.cid+':'+b+'-'+a))add(i,j,'cab:'+c.cid);
-      if(state.won&&land[i]&&land[j]&&(sub||cs)&&!cn[i]&&!cn[j])add(i,j);
+      if(cs)for(const c of cs)add(i,j,'cab:'+c.cid);
+      if(state.won&&land[i]&&land[j]&&(sub||cs))add(i,j);
       if(fab[i].length&&fab[j].length)for(const f of FABS)if(fab[i].includes(f)&&fab[j].includes(f))add(i,j,'fab:'+f.id);
     }
     diversityMap={key,ix,adj,links:n,answers:{}};

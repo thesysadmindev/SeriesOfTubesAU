@@ -1,7 +1,7 @@
 # Architecture
 
-Series of Tubes is a static web game hosted on **GitHub Pages, and only there**
-([ADR 0001](adr/0001-github-pages-only.md)). Its source is split into many small files under `src/`;
+Series of Tubes: Australia is a static web game hosted on **GitHub Pages, and only there**
+([ADR 0001](adr/0001-github-pages-only.md)), on a world map built around Australia ([ADR 0004](adr/0004-australia-only-map.md)). Its source is split into many small files under `src/`;
 the build joins them into **one self-contained `index.html`** (one inline `<style>`, one inline
 `<script>`), exactly the page players have always loaded ([ADR 0002](adr/0002-one-page-assembled-at-build.md)).
 
@@ -23,21 +23,21 @@ hoisted across files, and top-level statements run in path order. Find code by n
 
 | Folder under `src/game/` | What lives there |
 | --- | --- |
-| `00-core/` | `tr()`/`trn()`/`N_()` and the dictionary; version, release notes and the analytics counter |
-| `10-catalog/` | Prices and gear: POP and port costs, routers (`RG`), supply chain, port slots, dark fiber systems and optics (`OPT`), reach and subsea upgrades |
-| `20-world/` | Map projection, landmasses, coastline, city coordinates (`CITY_LL`), `CITIES`, `CABLES` |
+| `00-core/` | `tr()`/`trn()`/`N_()` and the dictionary; version, release notes and the visit counter (one GoatCounter request, country only) |
+| `10-catalog/` | Prices and gear: POP and port costs, NBN NNI ports and AVCs (`NNI_T`), data centre space (`DC_T`), routers (`RG`), supply chain, port slots, dark fiber systems and optics (`OPT`), reach and subsea upgrades |
+| `20-world/` | Map projection (the whole world, wrapping) and its lenses over the capitals (a push that never folds), landmasses, the generated coastline (`30-coastline.js`) and POIs (`45-pois.js`), city coordinates (`CITY_LL`), `CITIES` (data centres with their real site codes, route towns, peering hubs and cable landing stations overseas, and the 121 NBN POIs), `CABLES` |
 | `30-networks/` | Other ASes (`NETS`), rival exchanges (`XIX`), the long tail, traffic shares (`NSH`) |
 | `40-progress/` | Customer types (`BIZ_T`), `LEVELS` and their requirements, `GOALS`; the per-save ruleset (`S.rules`, `rule()`, `PRESETS`, `chaosMul()`, `leadDays()`) |
 | `50-state.js` | The globals `S`, `R`, `UI`; `emptyR()` |
-| `60-features/` | Banks and loans, scenarios and the weekly challenge, puzzles and the published weekly puzzle, conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`) |
-| `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering desk (requests answered by policy), peering policy and snubs, DE-KICKS, sold-out routes, hot ports and the Tier 1/2/3 rank |
+| `60-features/` | Banks and loans, starting a game (`beginGame()`), conferences, the tutorial, traceroute, the share card, `newGame()`, the offer trial (`autoOffer()`), standing orders (`S.ops`, `opsDay()`, run from `dayTick()`), hosting (`45-hosting.js`: `S.dc`, racks) and the NBN (`46-nbn.js`: `S.poi`, `nniG()`) |
+| `70-rules/` | Formatting helpers and market rules: exchanges, PNIs, the peering desk (requests answered by policy), peering policy and snubs, sold-out routes, hot ports and the Tier 1/2/3 rank |
 | `80-simulation/` | Dijkstra, RouteScript, where a DDoS flood goes (`ddosLoad()`/`ddosAfter()`, called by `compute()`), `compute()`, monthly prices, `sanitize()`/`migrate()`, customer requirements, events, geography pricing and latency, second sites and service |
 | `85-incidents/` | `addInc()`, DDoS attacks (targets, sizes, scoring, the NOC card) and scrubbing, `fireFailure()`, `clearInc()`, `fireEvent()` |
 | `88-days/` | `dayTick()`, new offers, badges, `checkGoals()` |
 | `90-actions/` | The `ACT` map, one file per area (`const ACT` in `10-interface.js`, `Object.assign(ACT,…)` in the rest), and their helpers |
 | `91-save.js`, `92-audio.js` | Save, export and import; sound effects |
 | `93-ui/` | DOM helpers (`$`, `btn`, `morph`), the phone tab bar, install pitch, HUD, left panel, city and link panels, decommissioning |
-| `94-dashboard/` | Scenario and level progress, where to meet a network, customers and connections overviews, lease swaps, the NOC dashboard, the bank, hints |
+| `94-dashboard/` | Level progress, where to meet a network, customers and connections overviews, lease swaps, the NOC dashboard, the bank, hints |
 | `95-modals/` | Toasts, notifications, modals, title screen, what's new, help, the link and own-cable modals |
 | `96-map/` | The canvas: resize, land and clouds, settings, level of detail, link geometry, `draw()`, the world layer, cities, input and click delegation |
 | `99-loop.js` | `frame()` and `boot()` |
@@ -66,15 +66,13 @@ Development runs on `npm run dev` (assembles on every request, reloads on save);
 | `scripts/test.js` | `npm test`: runs every `tests/*.test.js` |
 | `scripts/release-notes.js` | Extracts a version's CHANGELOG bullets |
 | `scripts/perf-bench.js`, `perf-browser.js`, `perf-stats.js`, `perf-fixture.js` | Big-network benchmark, base vs head, headless and in Chromium as a desktop and a throttled phone, with a significance test per row (posted on every PR by `perf.yml` + `perf-comment.yml`), and the generator of its save, `tests/fixtures/big-network.json` |
+| `scripts/og-image.js` | Redraws `site/images/og-image.png`, the link-preview card, from the real game in Chrome (after a build) |
 | `scripts/i18n-check.js`, `scripts/i18n-add.js`, `scripts/lib/dict.js` | Translation coverage and dictionary order; adding, renaming and removing entries |
 | `scripts/legacy/` | The splitter that made `src/` from the old `site/index.html` (and gave its text labels), and `port-branch.js`, which carries older branches over |
 | `tests/harness.js` | Loads the assembled page in jsdom with a seeded `Math.random` and a fake canvas |
 | `.github/workflows/ci.yml` | Tests and build on every push and PR |
 | `.github/workflows/auto-release.yml` | On a `package.json` version bump on `main`: test, tag, GitHub release from the CHANGELOG, start the deploy |
 | `.github/workflows/release.yml` | Builds and deploys to GitHub Pages, the only workflow that can |
-| `.github/workflows/weekly-puzzle.yml` | Sunday 03:37 UTC: makes the week's puzzle, commits it to `main` (data only, no release) and starts `release.yml` for the live release tag with `weekly=true` |
-| `scripts/weekly-puzzle.js`, `site/puzzles/weekly/` | The weekly puzzle generator and its output, one `<key>.json` per week plus `index.json` (see below) |
-| `scripts/weekly-scenario.js`, `scripts/lib/scenario-bot.js`, `site/scenarios/weekly/` | The weekly scenario generator, its reference player and its output (see below) |
 | `docs/adr/` | Decisions: GitHub Pages only (0001), one page assembled at build (0002), translations by label (0003) |
 
 ## Globals
@@ -107,7 +105,7 @@ never freezes the game.
    a job changed the network. An order that throws is paused; the day goes on. The NOC gets one notice a week.
 5. Updates customer mood, churn and new offers; IX members join; loans tick.
 6. Every 30 days: bills the month (revenue minus costs) and checks for bankruptcy.
-7. Checks goals, level, badges and scenario end conditions.
+7. Checks goals, level and badges.
 
 ## compute(): the traffic model
 
@@ -150,43 +148,32 @@ Served share per city (`sfOf`) drives eyeball revenue and customer mood.
 - The map is a canvas drawn every frame by `draw()`. Zoomed out (`lodFar()`) it uses
   a simplified style; parallel waves are grouped by `linkGroups()`.
 
-## The weekly puzzle
+## The Australian map
 
-A puzzle week runs from Sunday 06:00 Berlin time to the next Sunday 06:00, and is named after the ISO week of
-its Monday (the week starting Sunday 1 November 2026 is `2026-W45`); `pzWeekKey()` and `pzWeekStart()` in
-`src/game/60-features/93-puzzles-weekly.js` handle summer time and the year boundary.
-
-Every Sunday `weekly-puzzle.yml` runs `scripts/weekly-puzzle.js`, which loads the real game headless, picks a
-theme the last three weeks did not have (region tour, ring, detour around a hub, ocean crossing, island hopping,
-latency sprint) and cities the last four weeks did not use, gives them traffic (content in the first city, eyeballs
-in the others, a circuit with a latency cap for a sprint), searches for the cheapest topology that connects them and
-the cheapest one that survives any single cut (a whole cable, or a trench), then sizes both with the game's own
-routing (`scripts/lib/puzzle-solver.js`: links and routers big enough for every flow, after any cut too, then as
-small as they go). The budget sits just above that N-1 build. Both references are judged by the game's own star
-code and must earn one and three stars, or the puzzle is thrown away. The file holds only ids, numbers and
-translation labels with their fill-ins
-(`{"v":2,"key","theme","cities","src","dem","via","avoid","budget","twist","name":{"l","p"},"joke":{"l","p"},"ref","rev"?}`).
-`--check` re-validates every file the way the game does.
-
-The game fetches `puzzles/weekly/<key>.json` (relative, same origin) only when the Puzzles list opens, and checks
-it field by field (`pzWkValid()`): known fields, playable cities, labels from the theme's own list, sane numbers.
-When it is missing, offline or wrong, the seeded weekly (`pzWeekly()`) stands in, so the weekly puzzle always
-works. The service worker fetches these files network-first and keeps a copy for offline play.
-
-The weekly ships without a release: the workflow commits only `site/puzzles/weekly/` to `main` (no version bump,
-so `auto-release.yml` stays quiet) and starts `release.yml` from the live release's tag with `weekly=true`, which
-rebuilds that exact release with every weekly file from `main` and deploys it. Every release build takes the
-weekly files from `main` too, so no deploy ever drops a published week.
-
-The weekly scenario is its twin, in the same weeks and the same workflow run: `scripts/weekly-scenario.js` writes
-`site/scenarios/weekly/<key>.json`. A template (plain data in the script) picks a theme, a home city, rules from the
-scenario vocabulary (`scnRule` keys, `WEEK_MODS`) and a goal type with parameters; each goal type (`WS_GOALS` in
-`src/game/60-features/94-scenarios-weekly.js`) is implemented once in the game, with its progress card. A reference
-player (`scripts/lib/scenario-bot.js`) plays it through `ACT`, seeded with the scenario's seed; the goal's number is
-calibrated from that run, the scenario must not be won on day 0, the reference must win with a tenth of the days to
-spare, and its finishing day is the par. The file keeps the reference plan (`ref`), which `--check` replays. The game
-fetches the file when the Scenarios list opens, checks it with `wsValid()` (again in `sanitize()` on load), and falls
-back to the in-browser `weekly()`.
+- **Regions are states and territories** (`REG`: `nsw vic qld wa sa tas act nt`, plus `int` for the gateways
+  overseas). `regionsCount()` counts the states only. Long hauls cost more by state (`TX_REG`) and across the
+  Nullarbor and the outback (`nullPair`, `outPair` in `80-geography-and-latency.js`).
+- **Generated data:** `scripts/build-au-map.js` turns `scripts/data/` (Natural Earth land, the ACCC's POI list)
+  into the coastline and the POI table. Never edit those files; `--check` (and rule W6) keep them honest.
+- **NBN POIs** are ordinary cities with `poi:{area,prem,fsas}`. A POP there is half price; broadband there needs
+  an NNI port (`S.poi[city]`), and `compute()` caps the area's eyeballs at the port's size (`nniG()`, Infinity
+  off the POIs). Billing: AVCs per home (`C.wholesale`, via `avcMo()`) and NNI rent (`C.nbn`).
+- **Hosting:** `S.dc[city]` is a list of cages and halls; `colo`/`dedi` customers carry `racks` and pay rent
+  per rack (`V.hosting`); offers only spawn where racks are free (`spawnHosting()`).
+- **The map is the world and wraps** (ADR 0004, amendment): `W` is 8471 map px round the world, the seam in the
+  mid-Atlantic (`LON0`). Anything drawn loops over the copies on screen (`visibleKs()`), and distances across the
+  seam take the short way (`wrapDx()`); `wrapCam()` brings the camera back round. Coastline rings, cables and own
+  cable surveys are unwrapped point by point so each draws in one piece.
+- **Data centres and transit:** `isDc(c)` (Australian, not a POI, not a route town) is where a network starts and
+  the only place `sellsAt()` sells transit. `homesAt(c)` is where broadband can be sold: not the regional data centres (`dcOnly`)
+  and not the overseas PoPs (`gw`), which are for peering only (`sanitize()` drops broadband there). `custAt(c)`/`custOk(o)`: no business
+  customer has an end overseas either (offers, capacity deals, the fibre broker; checked on spawn, accept and load). Megapork (`FABS`) reaches them; `vxcMo()` prices a circuit across the sea off the wave
+  on that route, times `FAB_SEA`.
+- **What a building sells:** `inDc(c)` (not a POI, a route town or a landing station) is where exchange ports, PNIs
+  (`pniQuote()`) and caches are bought; rack space (`dcOk()`) only in an Australian data centre. `isLs(c)` marks a
+  cable landing station overseas (`ls`): cable pairs end there, so a route through it needs a PoP, and nothing is
+  sold. `sanitize()` drops caches, PNIs and space anywhere else. Own subsea cables stay inside the survey box
+  (`seaReach()`); Oman, Europe and Ashburn are reached on the cables already there.
 
 ## Saves, imports and migration
 
@@ -200,9 +187,11 @@ back to the in-browser `weekly()`.
   (higher seq) or deleted. A window never writes a slot whose index seq is newer than its own.
 - The single save of older versions (`sot-save-v1`) is copied to slot `main` and read back before the
   index lists it; the old key is removed only by that slot's next successful save.
+- Saves from the world map (no `mapV`, see `worldSave()`) are never loaded: `boot()`, `slotOpen()` and
+  `parseSave()` check first, mark the slot `retired` in the index and never write it, so it can still be
+  exported byte for byte or deleted (`tests/save-retire.test.js`).
 - `boot()` loads the save through `migrate()` → `sanitize()`. If loading throws, the
   slot is kept and marked damaged in the index (it can still be exported or deleted).
-- Puzzles never write a slot; while one runs, `save()` writes the network set aside (`UI.pzKeep`).
 - `sanitize(s)` is the gate for all untrusted state (saves and imported files): it
   drops unknown ids, clamps numbers, repairs references and fills defaults. Every new
   field in `S` needs a line there.

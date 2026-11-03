@@ -1,6 +1,6 @@
 /* ---------- the chaos monkey, on the map ----------
    It hops from cut to cut, sprays chaos where it snips, and dances where a snip really hurt. It visits normal games
-   (85-incidents/40-chaos-monkey.js) and reviews Architect runs. Pure decoration on the animation clock: nothing
+   (85-incidents/40-chaos-monkey.js). Pure decoration on the animation clock: nothing
    depends on it, and with animations off the monkey just sits at the cut. */
 const MK_RUN=0.62; // share of a review step the monkey spends running to the next cut
 const MK_COLS=['#FF4F9A','#FFD23F','#22C47A','#2F8CFF','#FF8A3D','#7B61FF'];

@@ -4,7 +4,7 @@ const { load } = require('./harness');
 
 function setup(ev) {
   ev(`ACT.start({});S.cash=1e11;S.lvl=13;S.day=100;for(const g of GOALS)S.done[g.id]=0;
-    S.links=[{id:'cable',a:'lag',b:'bde',kind:'df',own:true,sub:true,sys:'roadm',km:15000,ch:[],day:100,ready:1000,cut:0,mo:1}];`);
+    S.links=[{id:'cable',a:'akl',b:'tyo',kind:'df',own:true,sub:true,sys:'roadm',km:15000,ch:[],day:100,ready:1000,cut:0,mo:1}];`);
 }
 
 function dates(ev) {
@@ -171,7 +171,7 @@ test('owned ground fiber exposes the one-click button and uses the same crew pri
   const { ev, dom, errors } = load();
   try {
     setup(ev);
-    ev("ACT.buildPop({city:'ams'});Object.assign(S.links[0],{a:'fra',b:'ams',sub:false,km:800,ready:191});UI.sel={type:'link',id:'cable'};renderPanel()");
+    ev("ACT.buildPop({city:'mel'});Object.assign(S.links[0],{a:'syd',b:'mel',sub:false,km:800,ready:191});UI.sel={type:'link',id:'cable'};renderPanel()");
     const bulk = [...dom.window.document.querySelectorAll('#panelBody [data-act=crews]')].find(b => JSON.parse(b.dataset.args).all);
     assert.ok(bulk && !bulk.disabled, 'ground construction has the same one-click control');
     assert.ok(bulk.textContent.includes(ev('fmt$(3*(15000+800*6))')), '91 days remaining requires three hires');

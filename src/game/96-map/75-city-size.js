@@ -1,7 +1,7 @@
 /* City size: a city's icon says how many eyeballs live there, in five steps from an outpost to a megacity.
    P is the city's eyeball demand (about 40G per million people), so it stands in for population.
    Zoomed out the dots grow with it; zoomed in the skyline does. Crowded cities give way to bigger ones. */
-const CTIER_AT=[15,100,350,800],ctier=P=>{let t=0;while(t<4&&P>=CTIER_AT[t])t++;return t;};
+const CTIER_AT=[10,30,150,400],ctier=P=>{let t=0;while(t<4&&P>=CTIER_AT[t])t++;return t;};
 const CTIER=new Map(CITIES.map(C=>[C.id,ctier(C.P)])),cTier=id=>{const t=CTIER.get(id);return t===undefined?ctier((CITY[id]||{}).P||0):t;};
 // Near view: each tier's skyline, one [x, height, colour] per 10 px wide building, and a gentle extra scale on top.
 const SKY=[
@@ -21,11 +21,11 @@ const cityScale=sc=>sc*(innerWidth<=760?0.82:1);
 // An exchange you have not joined is a quiet tag, and on outposts and towns only once you zoom in close.
 const ixQuiet=id=>!S.myIx[id]&&!hasIxAt(id),ixShown=(id,p)=>!!ixName(id)&&(p||!ixQuiet(id)||cTier(id)>=2||cam.z>=1.5);
 /* Room on the map (near view only). Cities claim space in order: the selected or hovered city, your POPs, cities with
-   an offer, an outage or a part in the puzzle, then the biggest. A city whose skyline would sit on one already placed
+   an offer or an outage, then the biggest. A city whose skyline would sit on one already placed
    becomes a small dot (v.dem): still there and still tappable, just quiet. */
 function cityRoom(vis,sc){
-  const sel=UI.sel&&UI.sel.type==='city'?UI.sel.id:null,pz=pzOn();
-  const pr=v=>{const id=v.C.id;return id===sel||UI.hover===id?0:S.pops[id]?1:CM.off.has(id)||CM.inc.has(id)||(pz&&pzKind(id)&&pzKind(id)!=='off')?2:3;};
+  const sel=UI.sel&&UI.sel.type==='city'?UI.sel.id:null;
+  const pr=v=>{const id=v.C.id;return id===sel||UI.hover===id?0:S.pops[id]?1:CM.off.has(id)||CM.inc.has(id)?2:3;};
   for(const v of vis)v.pr=pr(v);
   const ord=vis.slice().sort((a,b)=>a.pr-b.pr||b.C.P-a.C.P),cell=64,grid=new Map(),at=(i,j)=>i*8192+j;
   for(const v of ord){const t=cTier(v.C.id),p=S.pops[v.C.id],r=(p?22:(SKY_W[t]/2+3+(ixShown(v.C.id,p)?7:0))*CSC[t])*sc;v.r=r;v.dem=false;

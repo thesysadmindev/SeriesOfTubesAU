@@ -1,5 +1,5 @@
 /* ---------- conference season ---------- */
-const CONFS=[{n:'PTC',c:'hnl',m:0,cap:1},{n:'NANOG',c:'chi',m:1},{n:'APRICOT',c:'sin',m:1},{n:'Peering Days',c:'waw',m:2},{n:'DKNOG',c:'cph',m:2,j:N_('conferences.the_hallway_track_moved_to_a')},{n:'UKNOF',c:'lon',m:3},{n:'MENOG',c:'dxb',m:3},{n:'NZNOG',c:'akl',m:3},{n:'RIPE',c:'ams',m:4},{n:'NANOG',c:'sea',m:5},{n:'IX Forum',c:'tok',m:6},{n:'AfPIF',c:'nbo',m:7},{n:'AusNOG',c:'syd',m:8},{n:'NLNOG Day',c:'ams',m:8},{n:'LACNOG',c:'sao',m:9},{n:'NANOG',c:'ash',m:9},{n:'Capacity Europe',c:'lon',m:9,cap:1},{n:'DENOG',c:'fra',m:10},{n:'RIPE',c:'ber',m:10},{n:'PTT Forum',c:'sao',m:11},{n:'PacNOG',c:'suv',m:11}];
+const CONFS=[{n:'PTC',c:'lax',m:0,cap:1},{n:'APRICOT',c:'sin',m:1},{n:'NZNOG',c:'akl',m:3},{n:'Peering Week',c:'per',m:5},{n:'AusNOG',c:'syd',m:8},{n:'Capacity Asia',c:'sin',m:9,cap:1},{n:'Peering Week',c:'bne',m:10},{n:'PacNOG',c:'akl',m:11}];
 const CONF_COST=8000,CONF_DAYS=45;
 // Sponsoring (#168) puts your logo on the lanyards: more customers call from that region while the glow lasts.
 // Only some meetings sell sponsorships, the same ones every time you look. Capacity conferences are where carriers buy in bulk.

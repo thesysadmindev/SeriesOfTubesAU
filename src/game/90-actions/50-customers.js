@@ -1,10 +1,11 @@
 Object.assign(ACT,{
  // List spare capacity with a capacity broker (#203): w waves and p spare pairs, sold as the route's market wants.
- listFiber:({id,w,p})=>{const l=S.links.find(x=>x.id===id);if(!l||l.kind!=='df'||l.ready>S.day)return;w=Math.max(0,Math.min(freeCh(l)-((l.list&&l.list.w)||0),w|0));p=l.own?Math.max(0,Math.min((pairFree(l)?1:0)-((l.list&&l.list.p)||0),p|0)):0;
+ listFiber:({id,w,p})=>{const l=S.links.find(x=>x.id===id);if(!l||l.kind!=='df'||l.ready>S.day||!custOk({city:l.a,city2:l.b}))return;w=Math.max(0,Math.min(freeCh(l)-((l.list&&l.list.w)||0),w|0));p=l.own?Math.max(0,Math.min((pairFree(l)?1:0)-((l.list&&l.list.p)||0),p|0)):0;
    if(!w&&!p){toast(tr('customers.nothing_spare_to_sell_on_this'),'bad');sfx('err');return;}const L=l.list||(l.list={w:0,p:0});L.w+=w;L.p+=p;
    toast(tr('broker.listed',{a:CITY[l.a].name,b:CITY[l.b].name}),'good');sfx('click');after();},
  unlistFiber:({id})=>{const l=S.links.find(x=>x.id===id);if(!l||!l.list)return;delete l.list;sfx('click');after();},
- accept:({id,auto=false})=>{const o=S.offers.find(x=>x.id===id);if(!o)return;const customer=auto?autoOffer(o):offerCustomer(o);if(!customer)return;if(!bHas(o)){toast(tr('customers.you_need_a_pop_in_every'),'bad');return;}
+ accept:({id,auto=false})=>{const o=S.offers.find(x=>x.id===id);if(!o||!custOk(o))return;const customer=auto?autoOffer(o):offerCustomer(o);if(!customer)return;if(!bHas(o)){toast(tr('customers.you_need_a_pop_in_every'),'bad');return;}
+   if(o.racks){if(dcFree(o.city)<o.racks){toast(tr('hosting.no_free_racks_there'),'bad');sfx('err');return;}if(BIZ_T[o.type].srv&&!spend(SRV_COST*o.racks))return;}
    if(o.type==='wwave'){const l=S.links.find(x=>x.id===o.link);if(!l||chMax(l)-(l.ch||[]).length-soldSlots(l)<o.slots){toast(tr('customers.not_enough_free_channels_on_that'),'bad');return;}}
    if(BIZ_T[o.type].event&&S.day>=o.start){toast(tr('customers.too_late_the_event_has_already'),'bad');return;}
    // A carrier renting more alien waves on a fiber it already rents grows its contract, like a real order for extra waves,

@@ -2,13 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
-// A small network on a fixed seed: Frankfurt, Amsterdam, London and Paris in a ring, with a spur out to Zurich.
+// A small network on a fixed seed: Sydney, Melbourne, Hobart and Adelaide in a ring, with a spur out to Canberra.
 function net(preset) {
   const { ev, errors, dom } = load();
-  ev(`beginGame('Monkey Testers','fra',${JSON.stringify({ mode: 'normal', preset })});if(UI.pendGame)ACT.pitchSkip()`);
-  ev("S.cash=1e9;S.lvl=4;for(const c of ['ams','lon','par','zrh'])ACT.buildPop({city:c})");
-  ev("ACT.launchBB({city:'fra'});ACT.buyTransit({city:'fra',net:'cog',tier:1})");
-  ev("for(const [a,b] of [['fra','ams'],['ams','lon'],['lon','par'],['par','fra'],['fra','zrh']]){UI.pending={a,b};ACT.buildLink({tier:1});}closeModal()");
+  ev(`beginGame('Monkey Testers','syd',${JSON.stringify({ mode: 'normal', preset })});if(UI.pendGame)ACT.pitchSkip()`);
+  ev("S.cash=1e9;S.lvl=4;for(const c of ['mel','hba','adl','cbr'])ACT.buildPop({city:c})");
+  ev("ACT.launchBB({city:'syd'});ACT.buyTransit({city:'syd',net:'cog',tier:1})");
+  ev("for(const [a,b] of [['syd','mel'],['mel','adl'],['adl','syd'],['mel','hba'],['syd','cbr']]){UI.pending={a,b};ACT.buildLink({tier:1});}closeModal()");
   ev('for(let i=0;i<60;i++)dayTick();S.inc=[];for(const l of S.links)l.cut=0;compute()');
   return { ev, errors, dom };
 }
@@ -25,8 +25,6 @@ test('the chaos monkey visits On-call and BGP at 3 a.m., never Change Freeze or 
   const { ev } = net('oncall');
   ev("S.mode='sandbox'");
   assert.equal(ev('mkElig()'), false);
-  ev("S.mode='normal';S.monkey.next=S.day;dayTick();S.scn={rules:{}}");
-  assert.equal(ev('mkOn()'), false, 'never in a scenario');
 });
 
 test('a visit lasts 120 to 240 days, snips every couple of weeks and pauses the usual failures', () => {
@@ -50,8 +48,8 @@ test('a visit lasts 120 to 240 days, snips every couple of weeks and pauses the 
 
 test('weak spots are tubes with no other way round', () => {
   const { ev } = net('oncall');
-  assert.equal(ev(`mkWeak(${link(ev, 'fra', 'zrh')})`), true);
-  assert.equal(ev(`mkWeak(${link(ev, 'fra', 'ams')})`), false);
+  assert.equal(ev(`mkWeak(${link(ev, 'syd', 'cbr')})`), true);
+  assert.equal(ev(`mkWeak(${link(ev, 'syd', 'mel')})`), false);
 });
 
 test('outlasting it unnoticed pays a bonus and earns the badge; going home hurt pays nothing', () => {

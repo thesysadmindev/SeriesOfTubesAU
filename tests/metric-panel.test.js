@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 const setup = (ev) => {
-  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'});UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal()");
+  ev("ACT.start({});S.cash=1e9;S.lvl=4;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buildPop({city:'mel'});UI.via=null;openLinkModal('syd','mel');ACT.buildLink({tier:1});closeModal()");
   ev("window.L=S.links[0].id;ACT.selLink({id:L});renderAll();ACT.setMetric({id:L,v:'custom'});renderAll()");
 };
 

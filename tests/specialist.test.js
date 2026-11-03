@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
 // Specialist play (#187, #173): capability offers, vendor demo units, pioneer fiber, consortium seats, charters.
-const start = "ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})";
+const start = "ACT.start({});S.cash=1e9;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})";
 const pop = (c) => `S.pops['${c}']=S.pops['${c}']||{day:0,bb:null,boost:0,down:0,routers:1,gen:false,rgen:0};`;
 const df = (id, a, b, ch, own = true) => `S.links.push({id:'${id}',a:'${a}',b:'${b}',kind:'df',own:${own},sys:'roadm',ch:${JSON.stringify(ch)},km:kmBetween('${a}','${b}'),sub:false,cable:null,mo:0,trench:'${id}',cut:0,day:0,ready:0,spares:false});`;
 // Spawn offers until one of a type shows up (or give up), with everything else cleared out of the way.
@@ -12,12 +12,12 @@ const spawnUntil = (ev, type, n = 400) => ev(`(()=>{for(let i=0;i<${n};i++){S.of
 test('#187 a capability brings its customers before the level does, only when you can serve them', () => {
   const { ev, dom, errors } = load();
   ev(start);
-  ev(`S.lvl=1;${pop('nyc')}${pop('chi')}compute()`);
+  ev(`S.lvl=1;${pop('mel')}compute()`);
   assert.equal(ev("spots().filter(s=>s.t==='hft').length"), 0, 'no low-latency path, no trading firm');
   assert.equal(JSON.parse(spawnUntil(ev, 'hft')), null, 'level 1 alone never brings HFT');
-  ev("S.links.push({id:'w',a:'nyc',b:'chi',kind:'wave',tier:2,km:kmBetween('nyc','chi'),cut:0,mo:0});compute()");
+  ev("S.links.push({id:'w',a:'syd',b:'mel',kind:'wave',tier:2,km:kmBetween('syd','mel'),cut:0,mo:0});compute()");
   const s = JSON.parse(ev("JSON.stringify(spots().find(s=>s.t==='hft'))"));
-  assert.deepEqual([s.a, s.b].sort(), ['chi', 'nyc']);
+  assert.deepEqual([s.a, s.b].sort(), ['mel', 'syd']);
   const o = JSON.parse(spawnUntil(ev, 'hft'));
   assert.ok(o, 'the trading firm calls');
   assert.equal(o.bw, ev("BIZ_T.hft.opts[0]"), 'at the smallest size');
@@ -25,9 +25,9 @@ test('#187 a capability brings its customers before the level does, only when yo
   assert.ok(o.latMax >= s.n, 'and the path you have already meets it');
   assert.equal(o.spot.k, 'lat');
   ev("ACT.leftTab({t:'deals'});renderAll()");
-  assert.match(dom.window.document.body.innerHTML, /They spotted your [\d.]+ ms (New York|Chicago)–(New York|Chicago) path/);
+  assert.match(dom.window.document.body.innerHTML, /They spotted your [\d.]+ ms (Sydney|Melbourne)–(Sydney|Melbourne) path/);
   // Lit dark fiber with enough capacity brings AI interconnects (level 4) to a level 3 network; not the bigger DCI.
-  ev(`S.lvl=3;${df('d', 'nyc', 'chi', ['zr4', 'zr4'])}compute()`);
+  ev(`S.lvl=3;${df('d', 'syd', 'mel', ['zr4', 'zr4'])}compute()`);
   const t = JSON.parse(ev("JSON.stringify([...new Set(spots().map(s=>s.t))])"));
   assert.ok(t.includes('ai'), 'AI training interconnect');
   assert.ok(!t.includes('hyper'), 'not a hyperscaler DCI three times its size');
@@ -49,14 +49,14 @@ test('#187 vendor demo units: one level ahead, a wait and a markup', () => {
   ev("ACT.demoAsk({k:'rg',id:1})");
   const at = ev("demoAt('rg',1)");
   assert.equal(at - ev('S.day'), ev('leadDays(DEMO_DAYS)'), 'a short wait');
-  ev("ACT.upRouter({city:'fra',g:1})");
-  assert.equal(ev("S.pops.fra.rgen||0"), 0, 'not before it ships');
+  ev("ACT.upRouter({city:'syd',g:1})");
+  assert.equal(ev("S.pops.syd.rgen||0"), 0, 'not before it ships');
   ev(`S.day=${at}`);
   assert.equal(ev("techOk('rg',1,2)"), true);
-  assert.equal(ev("swapCost('fra',1)"), ev("Math.round(RG[1].cost*hwMul('rt')*1.6)-tradeIn(0,1)"), '+60%');
+  assert.equal(ev("swapCost('syd',1)"), ev("Math.round(RG[1].cost*hwMul('rt')*1.6)-tradeIn(0,1)"), '+60%');
   const cash = ev('S.cash');
-  ev("ACT.upRouter({city:'fra',g:1})");
-  assert.equal(ev("S.pops.fra.rgen"), 1);
+  ev("ACT.upRouter({city:'syd',g:1})");
+  assert.equal(ev("S.pops.syd.rgen"), 1);
   assert.ok(cash - ev('S.cash') > 0);
   // Optics and line systems the same way.
   ev("S.lvl=2;ACT.demoAsk({k:'opt',id:'zr8'});ACT.demoAsk({k:'sys',id:'roadm'})");
@@ -73,8 +73,8 @@ test('#187 vendor demo units: one level ahead, a wait and a markup', () => {
 test('#187 pioneer fiber: dig your own before level 3, at a markup', () => {
   const { ev, errors } = load();
   ev(start);
-  ev(`S.lvl=2;${pop('ams')}UI.dfSrc='build';UI.dfSys='lite';UI.pending={a:'fra',b:'ams'};`);
-  const km = ev("kmBetween('fra','ams')");
+  ev(`S.lvl=2;${pop('mel')}UI.dfSrc='build';UI.dfSys='lite';UI.pending={a:'syd',b:'mel'};`);
+  const km = ev("kmBetween('syd','mel')");
   assert.equal(ev(`digCost(${km})`), ev(`Math.round(dfBuildCost(${km})*1.6)`));
   const cash = ev('S.cash');
   ev('ACT.orderDf()');
@@ -89,15 +89,15 @@ test('#187 pioneer fiber: dig your own before level 3, at a markup', () => {
 test('#173 a consortium seat: offer, pay, build, light, cut, save', () => {
   const { ev, dom, errors } = load();
   ev(start);
-  ev("S.lvl=3;S.capDeal={at:S.day,c:'lon'};capDealTick(S.day)");
+  ev("S.lvl=3;S.capDeal={at:S.day,c:'lax'};capDealTick(S.day)");
   const off = JSON.parse(ev('JSON.stringify(S.seatOff)'));
-  assert.ok(off && ev(`SEAT_ROUTES.lon.some(r=>r[2]===${JSON.stringify(off.name)})`), 'a capacity conference offers a seat on one of its routes');
+  assert.ok(off && ev(`SEAT_ROUTES.lax.some(r=>r[2]===${JSON.stringify(off.name)})`), 'a capacity conference offers a seat on one of its routes');
   ev("ACT.leftTab({t:'deals'});renderAll()");
   assert.match(dom.window.document.body.innerHTML, /Consortium seat: /);
   // A seat short enough to light with level 2 optics.
   ev("S.lvl=2;S.seatOff={a:'syd',b:'akl',name:'Tasman Devil',km:seatKm('syd','akl'),exp:S.day+30}");
   const km = ev('S.seatOff.km');
-  const cash = ev('S.cash'), popC = ev("popCost('syd')+popCost('akl')");
+  const cash = ev('S.cash'), popC = ev("(S.pops.syd?0:popCost('syd'))+popCost('akl')");
   ev('ACT.seatBuy({n:2})');
   assert.equal(cash - ev('S.cash'), ev(`seatCost(${km},2)`) + popC, 'your share of the build, and the landing POPs');
   const l = JSON.parse(ev("JSON.stringify(S.links.find(l=>l.seat))"));
@@ -135,18 +135,19 @@ test('#187 the Low-latency boutique: pick it on day 0, traders weigh more and pa
   const count = (k) => {
     const g = load();
     g.ev(start);
-    g.ev(`S.lvl=2;S.charter='${k}';${pop('nyc')}${pop('chi')}compute()`);
+    g.ev(`S.lvl=2;S.charter='${k}';${pop('mel')}${pop('bne')}compute()`);
     return JSON.parse(g.ev("(()=>{let n=0,r=0;for(let i=0;i<300;i++){S.offers=[];spawnOffer();const o=S.offers.find(o=>o.type==='hft');if(o){n++;if(o.reqs.length===1)r=o.rate/(150+kmBetween(o.city,o.city2)*0.08)/BIZ_T.hft.km;}}return JSON.stringify({n,r});})()"));
   };
   const gl = count('global'), bq = count('boutique');
   assert.ok(bq.n > gl.n * 1.5, `boutique traders call more (${bq.n} vs ${gl.n})`);
   assert.ok(Math.abs(bq.r - 1.4) < 0.02 && Math.abs(gl.r - 1) < 0.02, 'and pay 40% more');
-  // Speed of Light: three finance routes faster on your own glass than any lease, and two paying latency customers.
-  ev(`S.lvl=2;${pop('nyc')}${pop('chi')}${pop('ash')}${df('a', 'nyc', 'chi', ['zr4'])}${df('b', 'chi', 'ash', ['zr4'])}${df('c', 'nyc', 'ash', ['zr4'])}compute()`);
+  // Speed of Light: three finance routes faster on your own glass than any lease (Melbourne–Brisbane by way of Sydney
+  // too), and two paying latency customers.
+  ev(`S.lvl=2;${pop('mel')}${pop('bne')}${df('a', 'syd', 'mel', ['zr4'])}${df('b', 'syd', 'bne', ['zr4'])}compute()`);
   assert.equal(ev('solRoutes().length'), 3);
   ev('specDay(S.day)');
   assert.equal(ev('S.solWon'), 0, 'not without paying customers');
-  ev("for(const [a,b] of [['nyc','chi'],['chi','ash']])S.biz.push({id:uid(),city:a,city2:b,name:'T',type:'hft',bw:1,rate:1000,reqs:['lat'],latMax:latMaxOf(a,b),mood:100,since:0});compute();specDay(S.day)");
+  ev("for(const [a,b] of [['syd','mel'],['syd','bne']])S.biz.push({id:uid(),city:a,city2:b,name:'T',type:'hft',bw:1,rate:1000,reqs:['lat'],latMax:latMaxOf(a,b),mood:100,since:0});compute();specDay(S.day)");
   assert.equal(ev('S.solWon'), Math.max(1, ev('S.day')), 'Speed of Light');
   ev('checkBadges()');
   assert.notEqual(ev("S.ach.sol"), undefined, 'and its badge');
@@ -155,16 +156,16 @@ test('#187 the Low-latency boutique: pick it on day 0, traders weigh more and pa
   assert.deepEqual(errors, []);
 });
 
-test('#187 old saves load as Global backbone; scenarios ignore charters', () => {
+test('#187 old saves load as Global backbone; a sandbox ignores charters', () => {
   const { ev, errors } = load();
   ev(start);
-  ev("const o=JSON.parse(JSON.stringify(S));for(const k of ['charter','chartSet','demo','seatOff','solWon'])delete o[k];o.links.push({id:'q',a:'fra',b:'ams',kind:'df',own:false,sub:false,seat:true,sys:'lite',ch:[],km:400,ready:0});window.__o=migrate(o)");
+  ev("const o=JSON.parse(JSON.stringify(S));for(const k of ['charter','chartSet','demo','seatOff','solWon'])delete o[k];o.links.push({id:'q',a:'syd',b:'mel',kind:'df',own:false,sub:false,seat:true,sys:'lite',ch:[],km:400,ready:0});window.__o=migrate(o)");
   assert.equal(ev('__o.charter'), 'global');
   assert.equal(ev('__o.chartSet'), true, 'no charter card for an old save');
   assert.deepEqual(JSON.parse(ev('JSON.stringify(__o.demo)')), {});
   assert.equal(ev('__o.seatOff'), null);
   assert.equal(ev("__o.links.find(l=>l.id==='q').seat"), undefined, 'a forged seat is dropped');
-  ev("S.charter='boutique';S.scn={id:'x'}");
+  ev("S.charter='boutique';S.mode='sandbox'");
   assert.equal(ev('charter()'), 'global');
   assert.deepEqual(errors, []);
 });

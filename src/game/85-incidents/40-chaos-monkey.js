@@ -7,8 +7,8 @@
    on, start, until, snip (day of the next snip), n (snips), hurt (snips customers felt), c (city it last snipped by). */
 const MK_SNIPS=[N_('chaos_monkey.snip_unplugged'),N_('chaos_monkey.snip_sprayed'),N_('chaos_monkey.snip_to_see')];
 const mkSpicy=()=>rule('chaos')==='spicy';
-// Only the real game with real chaos: not Change Freeze (calm), Sandbox, puzzles or scenarios.
-function mkElig(){return !!S&&S.mode!=='sandbox'&&S.mode!=='puzzle'&&!S.scn&&!S.lost&&['normal','spicy'].includes(rule('chaos'));}
+// Only the real game with real chaos: not Change Freeze (calm) or Sandbox.
+function mkElig(){return !!S&&S.mode!=='sandbox'&&!S.lost&&['normal','spicy'].includes(rule('chaos'));}
 const mkOn=()=>!!(S&&S.monkey&&S.monkey.on&&mkElig());
 const rint=(a,n)=>a+Math.floor(Math.random()*n);
 // A quarter of a month's revenue to send it home; half a month's as the bonus for outlasting it.
@@ -28,7 +28,7 @@ function mkTick(d){const M=S.monkey;if(!M)return;
 function mkArrive(d){const M=S.monkey,cs=Object.keys(S.pops),len=mkSpicy()?rint(180,61):rint(120,121);
   S.stats.mkMet=(S.stats.mkMet||0)+1;
   Object.assign(M,{on:1,start:d,until:d+len,snip:d+3,n:0,hurt:0,c:cs.length?pick(cs):S.home});
-  toast(tr('chaos_monkey.arrived',{n:len}),'bad',[{l:tr('chaos_monkey.banana',{cost:fmt$(mkBananaCost())}),act:'mkBanana',args:{}}],{a:'tab',v:'noc'});sfx('alert');track('monkey_arrive');
+  toast(tr('chaos_monkey.arrived',{n:len}),'bad',[{l:tr('chaos_monkey.banana',{cost:fmt$(mkBananaCost())}),act:'mkBanana',args:{}}],{a:'tab',v:'noc'});sfx('alert');
   if(typeof mkStart==='function'&&CITY[M.c])mkStart(M.c);}
 function mkSnip(){const M=S.monkey,live=S.links.filter(l=>l.kind!=='vxc'&&!linkDown(l));if(!live.length)return;
   // Weak spots first: a sample keeps this cheap on big networks.
@@ -45,7 +45,7 @@ function mkLeave(why){const M=S.monkey,d=S.day,ok=!why&&M.n>0&&M.hurt===0;M.on=0
   // The usual failures were paused for the visit; give the NOC a breather before they start again.
   S.nextFail=Math.max(S.nextFail,d+15);
   if(why==='banana')toast(tr('chaos_monkey.bribed'),'good');
-  else if(ok){const b=mkBonus();S.cash+=b;S.stats.mkSurv=(S.stats.mkSurv||0)+1;toast(tr('chaos_monkey.survived',{n:M.n,cash:fmt$(b)}),'goal');sfx('coin');track('monkey_survived');}
+  else if(ok){const b=mkBonus();S.cash+=b;S.stats.mkSurv=(S.stats.mkSurv||0)+1;toast(tr('chaos_monkey.survived',{n:M.n,cash:fmt$(b)}),'goal');sfx('coin');}
   else if(!why)toast(tr('chaos_monkey.went_home',{n:M.n,hurt:M.hurt}),'');
   if(typeof mkEnd==='function')mkEnd(ok,true);}
 // The NOC tab's card while it is here.

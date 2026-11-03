@@ -17,8 +17,8 @@ spill at 85%
 # Business customers first when links are congested; home users get what is left
 # protect customers
 # Maintenance window? Drain a POP's exits, or steer around a link
-# drain paris
-# avoid link frankfurt-amsterdam
+# drain adelaide
+# avoid link sydney-melbourne
 # Under DDoS: blackhole the target upstream (saves everyone else)
 # blackhole ddos`;
 function lev(a,b){const m=a.length,n=b.length,d=Array.from({length:m+1},(_,i)=>[i]);for(let j=1;j<=n;j++)d[0][j]=j;for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[m][n];}
@@ -76,7 +76,7 @@ const TE_RECIPES=[
  {id:'diet',n:N_('common.prepend_diet'),d:N_('routescript.ask_the_rest_of_the_internet'),fit:()=>teUps().length>1?1.5:0,
   src:()=>{const u=teUps();return [tr('routescript.prepend_diet_a_hint_to_the'),'spill at 85%',...(u.length>1?['prepend transit '+teNm(u[u.length-1].n)+' 2']:[tr('routescript.prepending_needs_two_upstreams_to')])];}},
  {id:'maint',n:N_('common.maintenance_window'),d:N_('routescript.drain_a_pop_and_steer_around'),fit:()=>0.2,
-  src:()=>{const l=S.links.find(x=>!linkDown(x)),c=l?CITY[l.a].name.toLowerCase():'paris';return [tr('routescript.maintenance_window_change_the_names'),'drain '+c,...(l?['avoid link '+c+'-'+CITY[l.b].name.toLowerCase()]:[]),'spill at 80%'];}},
+  src:()=>{const l=S.links.find(x=>!linkDown(x)),c=l?CITY[l.a].name.toLowerCase():'adelaide';return [tr('routescript.maintenance_window_change_the_names'),'drain '+c,...(l?['avoid link '+c+'-'+CITY[l.b].name.toLowerCase()]:[]),'spill at 80%'];}},
  {id:'calm',n:N_('common.keep_calm'),d:N_('routescript.one_rule_move_traffic_before_links'),fit:()=>1,
   src:()=>[tr('routescript.keep_calm_one_rule_hard_to'),'spill at 85%']}];
 // The AI button: the two recipes that fit best, merged, with an AI's confidence on top.
@@ -109,8 +109,8 @@ function teHelpModal(){const rule=(code,what)=>`<dt><code>${code}</code></dt><dd
   ${rule('prefer transit cogentle',tr('routescript.rank_your_upstreams_preferred_ones'))}
   ${rule('prepend transit drizzle electric 2',tr('routescript.as_path_prepending_1_to_3'))}
   ${rule('protect customers',tr('routescript.when_links_are_congested_business'))}
-  ${rule('drain paris',tr('routescript.move_traffic_off_a_pop_s'))}
-  ${rule('avoid link frankfurt-amsterdam',tr('routescript.steer_traffic_around_one_link_unless'))}
+  ${rule('drain adelaide',tr('routescript.move_traffic_off_a_pop_s'))}
+  ${rule('avoid link sydney-melbourne',tr('routescript.steer_traffic_around_one_link_unless'))}
   ${rule('blackhole ddos',tr('routescript.during_an_attack_rtbh_the_target'))}
   </dl><h3>${tr('routescript.ready_made_scripts')}</h3><p class="meta">${tr('routescript.filled_in_from_your_network_as')}</p>
   ${TE_RECIPES.map(r=>`<div class="terec"><div><b>${tr(r.n)}</b><div class="meta">${tr(r.d)}</div></div>${btn(tr('common.load'),'teRecipe',{id:r.id},'sm')}</div>`).join('')}</div>

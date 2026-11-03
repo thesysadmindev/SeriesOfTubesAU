@@ -11,10 +11,6 @@ test('#186 a new network starts at half speed, even after a game at 8×', () => 
   assert.ok(dom.window.document.getElementById('sp0.5').classList.contains('on'), 'the HUD shows ½×');
   ev("ACT.speed({v:0});ACT.newgame();UI.mode='sandbox';ACT.start({})");
   assert.equal(ev('UI.speed'), 0.5, 'sandbox, and a paused game does not stay paused');
-  ev("ACT.speed({v:4});ACT.startScn({id:SCN[0].id,sure:1})");
-  assert.equal(ev('UI.speed'), 0.5, 'scenario');
-  ev("ACT.speed({v:2});ACT.startWeekly({sure:1})");
-  assert.equal(ev('UI.speed'), 0.5, 'weekly challenge');
   assert.deepEqual(errors, []);
 });
 

@@ -1,6 +1,6 @@
 /* ---------- Find a city (#218): a search box that jumps the map there ----------
    Matches the city's name, its country (in the player's language and in English) and its exchange and data center
-   names, so "Deutschland", "Germany" or "DE-CIX" all find Frankfurt. Press / anywhere, or the 🔍 chip in the HUD. */
+   names, so "Neuseeland", "New Zealand" or its exchange all find Auckland. Press / anywhere, or the 🔍 chip in the HUD. */
 const FIND_N=8;
 const fold=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 // Country names, built once per page: they never change while playing.

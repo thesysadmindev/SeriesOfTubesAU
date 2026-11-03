@@ -4,27 +4,27 @@ const { load } = require('./harness');
 
 // A network on four continents: POPs, waves, transit, IX ports, PNIs, caches and customers.
 function bigNet(ev) {
-  ev("ACT.start({});S.cash=1e10;S.lvl=6;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'})");
-  ev("for(const c of ['ams','lon','par','nyc','ash','chi','sjc','tok','hkg','sin','syd','sao'])ACT.buildPop({city:c})");
-  ev("for(const [a,b] of [['fra','ams'],['ams','lon'],['lon','par'],['par','fra'],['lon','nyc'],['nyc','ash'],['ash','chi'],['chi','sjc'],['sjc','syd'],['tok','hkg'],['hkg','sin'],['sin','syd'],['nyc','sao']]){UI.via=null;openLinkModal(a,b);ACT.buildLink({tier:1});closeModal();}");
+  ev("ACT.start({});S.cash=1e10;S.lvl=6;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'})");
+  ev("for(const c of ['mel','hba','adl','bne','drw','sin','per','lax','hkg','sin','syd','akl'])ACT.buildPop({city:c})");
+  ev("for(const [a,b] of [['syd','mel'],['mel','hba'],['hba','adl'],['adl','syd'],['hba','bne'],['bne','drw'],['drw','sin'],['sin','per'],['per','syd'],['lax','hkg'],['hkg','sin'],['sin','syd'],['bne','akl']]){UI.via=null;openLinkModal(a,b);ACT.buildLink({tier:1});closeModal();}");
   ev("for(const c in S.pops){S.pops[c].bb=S.pops[c].bb||{d:0};S.pops[c].bb.d=500;}");
-  ev("for(const [c,n] of [['fra','cog'],['nyc','lvl'],['sin','cog'],['tok','lvl']])ACT.buyTransit({city:c,net:n,tier:1})");
-  ev("for(const c of ['fra','ams','lon','nyc','sin','tok'])ACT.buyIx({city:c,tier:1,signed:true});for(const c in S.ixp)ACT.rs({city:c});compute()");
-  ev("for(const n of ['ggl','nfx','fbk','amz','akm'])for(const c of ['fra','nyc','sin'])ACT.pni({city:c,net:n,tier:1});compute()");
-  ev("for(const n of ['nfx','ggl'])for(const c of ['fra','nyc','sin','lon'])ACT.cache({city:c,net:n})");
+  ev("for(const [c,n] of [['syd','cog'],['bne','lvl'],['sin','cog'],['lax','lvl']])ACT.buyTransit({city:c,net:n,tier:1})");
+  ev("for(const c of ['syd','mel','hba','bne','sin','lax'])ACT.buyIx({city:c,tier:1});for(const c in S.ixp)ACT.rs({city:c});compute()");
+  ev("for(const n of ['ggl','nfx','fbk','amz','akm'])for(const c of ['syd','bne','sin'])ACT.pni({city:c,net:n,tier:1});compute()");
+  ev("for(const n of ['nfx','ggl'])for(const c of ['syd','bne','sin','hba'])ACT.cache({city:c,net:n})");
   ev("for(let i=0;i<150;i++){S.offers=[];spawnOffer();for(const o of S.offers.slice())if(bHas(o))ACT.accept({id:o.id});}closeModal();compute()");
 }
 
 test('a preferred exit far away still wins over a normal one next door', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'})");
-  ev("UI.via=null;openLinkModal('fra','ams');ACT.buildLink({tier:1});closeModal();ACT.buyTransit({city:'fra',net:'cog',tier:1});ACT.buyTransit({city:'ams',net:'tly',tier:1});compute()");
+  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buildPop({city:'mel'})");
+  ev("UI.via=null;openLinkModal('syd','mel');ACT.buildLink({tier:1});closeModal();ACT.buyTransit({city:'syd',net:'cog',tier:1});ACT.buyTransit({city:'mel',net:'tsy',tier:1});compute()");
   assert.equal(ev('S.links.length'), 1);
   const use = () => JSON.parse(ev("JSON.stringify(S.transit.map(t=>R.useT[t.id]||0))"));
   assert.equal(use()[1], 0, 'normal: the local transit carries it all');
   ev("S.transit[1].pref='high';compute()");
-  const [fra, ams] = use();
-  assert.ok(ams > 0 && ams > fra, `preferred: Amsterdam's transit comes first (${fra} / ${ams})`);
+  const [syd, mel] = use();
+  assert.ok(mel > 0 && mel > syd, `preferred: Melbourne's transit comes first (${syd} / ${mel})`);
   assert.deepEqual(errors, []);
 });
 
@@ -59,7 +59,7 @@ test('a big network routes every flow to an exit with room, and caches serve the
 test('panels are patched in place: the same HTML, and buttons that now do something else are new', () => {
   const { ev, errors } = load();
   bigNet(ev);
-  ev("selectCity('fra');ACT.tab({t:'peer'})");
+  ev("selectCity('syd');ACT.tab({t:'peer'})");
   const fresh = "(()=>{const d=document.createElement('div');d.innerHTML=UI._ph;return d.innerHTML;})()";
   const same = () => ev(`(()=>{const a=[...document.getElementById('panelBody').querySelectorAll('*')],d=document.createElement('div');d.innerHTML=UI._ph;const b=[...d.querySelectorAll('*')];
     return a.length===b.length&&a.every((x,i)=>x.nodeName===b[i].nodeName&&x.attributes.length===b[i].attributes.length&&[...b[i].attributes].every(t=>x.getAttribute(t.name)===t.value)&&(x.children.length||x.textContent===b[i].textContent));})()`);
@@ -69,8 +69,9 @@ test('panels are patched in place: the same HTML, and buttons that now do someth
   assert.equal(same(), true, 'patched panel matches a fresh render');
   assert.equal(ev("window.__tab===document.querySelector('#panelBody [data-act=\"tab\"]')"), true, 'an unchanged button stays the same button');
   // another city: its buttons act on that city, so a tap that started on the old ones cannot fire them (#44)
-  ev("window.__btn=[...document.querySelectorAll('#panelBody [data-act]')].find(b=>(b.dataset.args||'').includes('\"fra\"'))");
-  ev("selectCity('nyc');ACT.tab({t:'peer'})");
+  ev("window.__btn=[...document.querySelectorAll('#panelBody [data-act]')].find(b=>(b.dataset.args||'').includes('\"syd\"'))");
+  assert.ok(ev('!!window.__btn'), 'a button that acts on Sydney');
+  ev("selectCity('bne');ACT.tab({t:'peer'})");
   assert.equal(same(), true);
   assert.equal(ev("document.getElementById('panelBody').contains(window.__btn)"), false);
   assert.ok(ev(fresh).length > 1000);
@@ -92,19 +93,19 @@ test('the map draws a big network at every zoom, with a city or a link selected'
   const { ev, errors } = load();
   bigNet(ev);
   ev("localStorage.setItem('sot-anim','on');UI.anim='on'");
-  for (const sel of ['null', "{type:'city',id:'fra'}", "{type:'link',id:S.links[2].id}"]) {
+  for (const sel of ['null', "{type:'city',id:'syd'}", "{type:'link',id:S.links[2].id}"]) {
     for (const z of [0.35, 0.6, 1.2, 2.5, 6]) ev(`UI.sel=${sel};cam.z=${z};draw(1000);draw(1016)`);
   }
   assert.ok(ev('ctx.calls.n') > 1000);
-  assert.ok(ev("hitLink(...toS(CITY.fra.x,CITY.fra.y,0))!==undefined"));
+  assert.ok(ev("hitLink(...toS(CITY.syd.x,CITY.syd.y))!==undefined"));
   assert.deepEqual(errors, []);
 });
 
 test('the map keeps fiber capacities for one frame only, and skips links above or below the screen', () => {
   const { ev, errors } = load();
   bigNet(ev);
-  ev("S.links.push({id:'dfT',a:'fra',b:'ams',kind:'df',own:true,km:kmBetween('fra','ams'),ready:0,ch:['zr4']});compute()");
-  ev('cam.x=CITY.fra.x;cam.y=CITY.fra.y;cam.z=2;draw(0)');
+  ev("S.links.push({id:'dfT',a:'syd',b:'mel',kind:'df',own:true,km:kmBetween('syd','mel'),ready:0,ch:['zr4']});compute()");
+  ev('cam.x=CITY.syd.x;cam.y=CITY.syd.y;cam.z=2;draw(0)');
   assert.equal(ev('DFC'), null, 'nothing is kept between frames');
   const cap = ev("dfCap(S.links.find(l=>l.id==='dfT'))");
   ev("S.links.find(l=>l.id==='dfT').ch.push('zr4');draw(0)");
@@ -114,7 +115,7 @@ test('the map keeps fiber capacities for one frame only, and skips links above o
   ev('delete ctx.fillText');
   assert.equal(ev('DFC'), null, 'not even after a frame that failed');
   // The whole network far above the screen: the links cost nothing, as if there were none.
-  const calls = (body) => ev(`(()=>{cam.x=CITY.fra.x;cam.y=CITY.fra.y+${'2000'};cam.z=2;${body};const n=ctx.calls.n;draw(0);return ctx.calls.n-n;})()`);
+  const calls = (body) => ev(`(()=>{cam.x=CITY.syd.x;cam.y=CITY.syd.y+${'2000'};cam.z=2;${body};const n=ctx.calls.n;draw(0);return ctx.calls.n-n;})()`);
   const withLinks = calls(''), links = ev('JSON.stringify(S.links)');
   assert.equal(withLinks, calls('S.links=[]'));
   ev(`S.links=JSON.parse(${JSON.stringify(links)})`);
@@ -127,14 +128,14 @@ test('a map with more than MAP_BUSY lines on screen leaves out link labels and f
   // Spy on the two things that go: the dotted line on lit fiber and the link labels.
   ev("window.__dots=0;window.__labels=[];ctx.setLineDash=d=>{if(d.length===2&&d[0]===1&&d[1]===6)__dots++;};ctx.fillText=t=>{if(/ DF$/.test(t))__labels.push(t);}");
   const frame = () => ev("__dots=0;__labels=[];draw(0);JSON.stringify([__dots,__labels.length])");
-  const view = "cam.x=(CITY.fra.x+CITY.lon.x)/2;cam.y=(CITY.fra.y+CITY.lon.y)/2;cam.z=1.6;";
+  const view = "cam.x=(CITY.syd.x+CITY.hba.x)/2;cam.y=(CITY.syd.y+CITY.hba.y)/2;cam.z=1.6;";
   const lines = () => ev("(()=>{const PI=pairIdx();return linesOnScreen(linkGroups().map(g=>linkGeom(g[0],PI.get(edgeKey(g[0])))),visibleKs());})()");
-  ev("const ps=[['fra','ams'],['ams','lon'],['lon','par'],['par','fra'],['fra','lon'],['ams','par']];for(let i=0;i<20;i++){const [a,b]=ps[i%6];S.links.push({id:'dfB'+i,a,b,kind:'df',own:true,km:kmBetween(a,b),ready:0,ch:['zr4']});}compute()");
+  ev("const ps=[['syd','mel'],['mel','hba'],['hba','adl'],['adl','syd'],['syd','hba'],['mel','adl']];for(let i=0;i<20;i++){const [a,b]=ps[i%6];S.links.push({id:'dfB'+i,a,b,kind:'df',own:true,km:kmBetween(a,b),ready:0,ch:['zr4']});}compute()");
   ev(view);
   assert.ok(lines() < ev('MAP_BUSY'));
   const [dots, labels] = JSON.parse(frame());
   assert.ok(dots >= 20 && labels >= 20, 'a normal map shows them');
-  ev("const ps2=[['fra','ams'],['ams','lon'],['lon','par'],['par','fra'],['fra','lon'],['ams','par']];for(let i=20;i<MAP_BUSY+20;i++){const [a,b]=ps2[i%6];S.links.push({id:'dfB'+i,a,b,kind:'df',own:true,km:kmBetween(a,b),ready:0,ch:['zr4']});}compute()");
+  ev("const ps2=[['syd','mel'],['mel','hba'],['hba','adl'],['adl','syd'],['syd','hba'],['mel','adl']];for(let i=20;i<MAP_BUSY+20;i++){const [a,b]=ps2[i%6];S.links.push({id:'dfB'+i,a,b,kind:'df',own:true,km:kmBetween(a,b),ready:0,ch:['zr4']});}compute()");
   ev(view);
   assert.ok(lines() > ev('MAP_BUSY'));
   assert.equal(frame(), '[0,0]', 'a tangle of lines does not');
@@ -150,8 +151,8 @@ test('long lists in the NOC dashboard show 100 rows at a time and grow on reques
   const { ev, errors } = load();
   bigNet(ev);
   // well over a hundred PNIs and customers
-  ev("const cs=Object.keys(S.pops);let i=0;for(const n of NETS)for(const c of cs.slice(0,2))S.pni.push({id:'tp'+(i++),city:c,net:n.id,tier:0,n:1,site:'a',sacrif:false});");
-  ev("for(let j=0;j<150;j++)S.biz.push({id:'tb'+j,city:'fra',city2:null,name:'Test '+j,type:'dia',bw:1,rate:100,mood:50+j%40,since:0,reqs:[],pm:50});compute()");
+  ev("const cs=Object.keys(S.pops);let i=0;for(const n of NETS)for(const c of cs.slice(0,4))S.pni.push({id:'tp'+(i++),city:c,net:n.id,tier:0,n:1,site:'a',sacrif:false});");
+  ev("for(let j=0;j<150;j++)S.biz.push({id:'tb'+j,city:'syd',city2:null,name:'Test '+j,type:'dia',bw:1,rate:100,mood:50+j%40,since:0,reqs:[],pm:50});compute()");
   const total = ev('conns().length');
   assert.ok(total > 200);
   ev("UI.dtab='conn';ACT.connOpen()");
@@ -187,8 +188,8 @@ test('the map is only redrawn when something on it can have changed', () => {
   assert.equal(frame(), 0, 'paused and untouched: nothing is drawn');
   assert.ok(frame('cam.x+=5') > 0, 'moving the map redraws it');
   assert.equal(frame(), 0);
-  assert.ok(frame("UI.hover='ams'") > 0, 'pointing at a city redraws');
-  assert.ok(frame("UI.sel={type:'city',id:'fra'}") > 0, 'selecting redraws');
+  assert.ok(frame("UI.hover='mel'") > 0, 'pointing at a city redraws');
+  assert.ok(frame("UI.sel={type:'city',id:'hba'}") > 0, 'selecting redraws');
   assert.ok(frame('dayTick()') > 0, 'a new day redraws');
   assert.equal(frame(), 0);
   assert.ok(frame('', 1100) > 0, 'and once a second anyway');
@@ -204,7 +205,7 @@ test('the map is only redrawn when something on it can have changed', () => {
 test('after a day the open panels catch up on the next frame, even when every frame has a day', () => {
   const { ev, errors } = load();
   bigNet(ev);
-  ev("closeModal();selectCity('fra');window.__rp=0;const rp0=renderPanel;renderPanel=function(){__rp++;return rp0.apply(this,arguments);}");
+  ev("closeModal();selectCity('syd');window.__rp=0;const rp0=renderPanel;renderPanel=function(){__rp++;return rp0.apply(this,arguments);}");
   ev('UI.speed=1;acc=DAY_MS;last=0;frame(16)');
   const day = ev('S.day');
   assert.equal(ev('__rp'), 0, 'the frame with the day leaves the panels for later');
@@ -294,13 +295,13 @@ function plainCompute(ev) {
 test('fast routing gives exactly the same result as the plain path it replaces', () => {
   const { ev, errors } = load();
   plainCompute(ev);
-  ev(`ACT.start({});S.cash=1e12;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});
-    const cs=ALLC.filter(c=>!CITY[c].cn).slice(0,40);for(const c of cs){if(!S.pops[c])ACT.buildPop({city:c});S.pops[c].rgen=10;S.pops[c].routers=4;if(!S.pops[c].bb)ACT.launchBB({city:c});S.pops[c].bb.d=CITY[c].P*0.7;}
+  ev(`ACT.start({});S.cash=1e12;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});
+    const cs=ALLC.slice(0,40);for(const c of cs){if(!S.pops[c])ACT.buildPop({city:c});S.pops[c].rgen=10;S.pops[c].routers=4;if(!S.pops[c].bb&&!CITY[c].dcOnly){if(isPoi(c)){ACT.nniOrder({city:c,t:1});S.poi[c].ready=0;}ACT.launchBB({city:c});}if(S.pops[c].bb)S.pops[c].bb.d=CITY[c].P*0.7;}
     const L=(a,b,t)=>{UI.via=null;UI.lmode='wave';UI.route='diverse';try{openLinkModal(a,b);ACT.buildLink({tier:t});closeModal();}catch(e){}};
     for(let i=1;i<cs.length;i++)L(cs[i-1],cs[i],2);for(let i=0;i<cs.length;i+=4)L(cs[i],cs[(i+9)%cs.length],1);
     // two upstreams in some cities and route servers on every exchange: equal-cost choices at the same POP
     for(const c of cs.slice(0,14)){const ts=NETS.filter(n=>n.price&&n.pops.includes(c)&&(n.type==='t1'||n.type==='t2')).slice(0,2);for(const t of ts)ACT.buyTransit({city:c,net:t.id,tier:1});}
-    for(const c of cs)for(const x of ixIdsIn(c)){try{ACT.buyIx({city:x,tier:1});}catch(e){}if(S.dk&&S.dk.q){S.dk.q=null;closeModal();}if(S.ixp[x]!==undefined&&!S.rs[x])ACT.rs({city:x});}
+    for(const c of cs)for(const x of ixIdsIn(c)){try{ACT.buyIx({city:x,tier:1});}catch(e){}if(S.ixp[x]!==undefined&&!S.rs[x])ACT.rs({city:x});}
     compute();for(const n of NETS)for(const c of cs)if(n.pops.includes(c)&&peerOk(n.id,'pni',c).ok&&S.pni.length<150)S.pni.push({id:'p'+n.id+c,net:n.id,city:c,tier:1,n:1});
     for(const n of NETS.filter(n=>n.cache))for(const c of cs.slice(0,15))for(const k of [1,2])S.caches.push({id:'c'+k+n.id+c,city:c,net:n.id,site:'a'});
     if(S.pni[3])S.pni[3].pref='high';if(S.transit[1])S.transit[1].pref='low';S.te={on:true,day:0};S.core={lv:2,run:2,legacy:true};S.nextFail=1e9;S.nextEvent=1e9;`);
@@ -324,12 +325,12 @@ test('fast routing gives exactly the same result as the plain path it replaces',
 test('Auto-TE routes around a full link exactly like the plain path', () => {
   const { ev, errors } = load();
   plainCompute(ev);
-  // Frankfurt reaches its only upstream in Amsterdam over a 10G wave, or the long way through Brussels on 800G.
-  ev(`ACT.start({});S.cash=1e12;S.lvl=13;for(const g of GOALS)S.done[g.id]=0;for(const c of ['ams','bru'])ACT.buildPop({city:c});
-    for(const c of ['fra','ams','bru']){S.pops[c].rgen=RG_TOP;S.pops[c].routers=RMAX;}if(!S.pops.fra.bb)ACT.launchBB({city:'fra'});S.pops.fra.bb.d=CITY.fra.P*0.8;
+  // Sydney reaches its only upstream in Melbourne over a 10G wave, or the long way through Canberra on 800G.
+  ev(`ACT.start({});S.cash=1e12;S.lvl=13;for(const g of GOALS)S.done[g.id]=0;for(const c of ['mel','cbr'])ACT.buildPop({city:c});
+    for(const c of ['syd','mel','cbr']){S.pops[c].rgen=RG_TOP;S.pops[c].routers=RMAX;}if(!S.pops.syd.bb)ACT.launchBB({city:'syd'});S.pops.syd.bb.d=CITY.syd.P*0.8;
     const L=(a,b,t)=>{UI.via=null;UI.lmode='wave';UI.route='main';openLinkModal(a,b);ACT.buildLink({tier:t});closeModal();};
-    L('fra','ams',0);L('fra','bru',3);L('bru','ams',3);
-    S.transit=[];const t=NETS.find(n=>n.price&&n.pops.includes('ams')&&n.type==='t1');ACT.buyTransit({city:'ams',net:t.id,tier:3});
+    L('syd','mel',0);L('syd','cbr',3);L('cbr','mel',3);
+    S.transit=[];const t=NETS.find(n=>n.price&&n.pops.includes('mel')&&sellsAt(n,'mel'));ACT.buyTransit({city:'mel',net:t.id,tier:3});
     S.ixp={};S.pni=[];S.caches=[];S.te={on:true,day:0};S.core={lv:2,run:2,legacy:true};S.nextFail=1e9;S.nextEvent=1e9;`);
   const sig = () => ev('JSON.stringify({served:R.served,teMoved:R.teMoved,egT:R.egT,load:S.links.map(l=>R.load[l.id]||0),node:R.nodeLoad,t:R.useT})');
   for (const script of ['', 'spill at 70%']) {
@@ -338,18 +339,18 @@ test('Auto-TE routes around a full link exactly like the plain path', () => {
     ev('__plain()'); const ref = sig();
     assert.equal(fast, ref, `fast and plain route the same around the full link (${script || 'no script'})`);
     assert.ok(ev('R.teMoved') > 100, 'Auto-TE moved traffic through Brussels');
-    assert.ok(ev("R.load[S.links.find(l=>l.a==='fra'&&l.b==='ams').id]") >= (script ? 6.9 : 9.99), 'the direct 10G link is full (up to the spill line)');
+    assert.ok(ev("R.load[S.links.find(l=>l.a==='syd'&&l.b==='mel').id]") >= (script ? 6.9 : 9.99), 'the direct 10G link is full (up to the spill line)');
   }
   assert.deepEqual(errors, []);
 });
 
 test('fiber customers are checked by link id the same way with or without the lookup tables', () => {
   const { ev, errors } = load();
-  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'fra'});ACT.buildPop({city:'ams'})");
+  ev("ACT.start({});S.cash=1e8;for(const g of GOALS)S.done[g.id]=0;ACT.launchBB({city:'syd'});ACT.buildPop({city:'mel'})");
   // Dark fibers: one fine, one cut, one waiting for gear, one not built yet, and a second link reusing an id (the first one wins).
-  ev(`(()=>{const sys=Object.keys(DF_SYS)[0],L=(id,o)=>S.links.push({id,a:'fra',b:'ams',kind:'df',sys,km:400,ready:0,ch:[],own:true,...o});
+  ev(`(()=>{const sys=Object.keys(DF_SYS)[0],L=(id,o)=>S.links.push({id,a:'syd',b:'mel',kind:'df',sys,km:400,ready:0,ch:[],own:true,...o});
     L('f1',{});L('f2',{cut:S.day+5});L('f3',{eqDown:S.day+5});L('f4',{ready:S.day+30});L('f1',{cut:S.day+5});
-    let n=0;const B=(type,link,o)=>S.biz.push({id:'b'+(n++),type,link,city:'fra',city2:'ams',bw:1,rate:1,mood:80,reqs:[],...o});
+    let n=0;const B=(type,link,o)=>S.biz.push({id:'b'+(n++),type,link,city:'syd',city2:'mel',bw:1,rate:1,mood:80,reqs:[],...o});
     for(const l of ['f1','f2','f3','f4','gone'])for(const t of ['wwave','dfpair','pairs'])B(t,l,{slots:t==='wwave'?2:undefined});
     B('wwave','f1',{slots:3});B('wwave','f1',{});B('dfpair','f3',{});})()`);
   const r = JSON.parse(ev(`(()=>{const ids=linkIds(),u=fiberUse(),out=[];

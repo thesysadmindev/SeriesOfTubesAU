@@ -1,6 +1,6 @@
 /* Single and bulk orders share the same checks, prices and provisioning. */
 function pniQuote(city,net,tier,reserved=0){tier=+tier;const g1=tier===-1;if(g1)tier=0;
-  if(!S||!S.pops[city]||!isNet(net)||!NET[net].pops.includes(city)||!Number.isInteger(tier)||!PORT[tier]||(g1&&!pniG1(net)))return null;
+  if(!S||!S.pops[city]||!inDc(city)||!isNet(net)||!NET[net].pops.includes(city)||!Number.isInteger(tier)||!PORT[tier]||(g1&&!pniG1(net)))return null;
   const ex=S.pni.find(p=>p.city===city&&p.net===net);
   if(ex&&(g1||!pniOn(ex)||ex.up||(!(ex.g1&&tier===0)&&tier<=ex.tier)))return null;
   const cost=g1?PNI_G1_COST:(1500+PORT[tier].setup/2)*(ex&&ex.n||1),slots=ex?(PORT_SLOT(tier)-PORT_SLOT(ex.tier))*(ex.n||1):PORT_SLOT(tier);

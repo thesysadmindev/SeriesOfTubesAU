@@ -1,6 +1,6 @@
 /* ---------- NOC: the backbone's technology ---------- */
 const CORE_WHAT=[N_('core.shortest_paths_only_every_router'),N_('core.labels_switch_traffic_that_only'),N_('core.tunnels_unlock_auto_te_and'),N_('core.segment_routing_te_detours_up'),N_('core.segment_routing_over_ipv6_the')];
-function corePanel(){if(!S.core||S.mode==='puzzle'||S.pz||S.ar||S.scn)return '';const C=S.core,run=C.run,lv=C.lv,n=lv+1;
+function corePanel(){if(!S.core)return '';const C=S.core,run=C.run,lv=C.lv,n=lv+1;
   let h=`<h3 style="font-size:15px;margin:8px 0 4px">${tr('core.backbone')}</h3><div class="kv"><span>${tr('core.running')}</span><b>${tr(CORE_LV[run])}</b></div>`;
   h+=`<p class="meta" style="margin:2px 0 6px">${tr(CORE_WHAT[run])}${run?' '+tr('core.uses_p_of_router_cpu',{p:pct(CORE_CPU[run])}):''}</p>`;
   if(C.legacy)h+=`<p class="note" style="margin:0 0 6px">${tr('core.your_auto_te_predates_backbones')}</p>`;

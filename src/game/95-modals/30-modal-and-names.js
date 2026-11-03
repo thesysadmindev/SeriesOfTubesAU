@@ -13,16 +13,12 @@ const NETWORK_NAMES=[
   'Route Flap Jacks','Split Horizon & Co.','Path of Least Resistance',
 ];
 function randomNetworkName(current){
-  // Naming must not advance a running scenario's seeded simulation.
   const names=NETWORK_NAMES.filter(n=>n!==current);
-  return names[Math.floor(_rand()*names.length)];
+  return names[Math.floor(Math.random()*names.length)];
 }
 const HTIW='https://tkjaer.github.io/how-the-internet-works/';
 // The real thing: an interactive, zoomable guide to how packets actually travel. Go read it.
-// Where players hang out: the community Signal group.
-const SIGNAL='https://signal.group/#CjQKIJwvEt5fYt1pvw7J2pV664CyUyGJXmAJLV8ia3nUdAD7EhA_FzdxflEzkNmcvDHdVgLQ';
-const chatHtml=()=>`<a class="plug chat" href="${SIGNAL}" target="_blank" rel="noopener"><span class="pi" aria-hidden="true">💬</span><span><b>${tr('modal_and_names.join_the_noc_chat')}</b><span class="meta">${tr('modal_and_names.our_signal_group_screenshots_chat')}</span></span><span class="go">${tr('common.join')}</span></a>`;
 // Bugs and ideas go to GitHub, where they get tracked; the chat is for chatting. Its forms sort them by kind.
-const ISSUES='https://github.com/fjaeckel/seriesoftubes/issues/new/choose';
+const ISSUES='https://github.com/thesysadmindev/SeriesOfTubesAU/issues/new/choose';
 const issueHtml=()=>`<a class="plug" href="${ISSUES}" target="_blank" rel="noopener"><span class="pi" aria-hidden="true">🐛</span><span><b>${tr('modal_and_names.found_a_bug_or_have_an')}</b><span class="meta">${tr('modal_and_names.tell_us_on_github_a_short')}</span></span><span class="go">${tr('modal_and_names.open')}</span></a>`;
 const plugHtml=(big)=>`<a class="plug" href="${HTIW}" target="_blank" rel="noopener"><span class="pi" aria-hidden="true">🌍</span><span><b>${tr('modal_and_names.how_the_internet_works')}</b><span class="meta">${big?tr('modal_and_names.the_real_thing_by_thomas_kj'):tr('modal_and_names.the_real_thing_follow_a_packet')}</span></span><span class="go">${tr('common.explore')}</span></a>`;

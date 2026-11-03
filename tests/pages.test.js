@@ -33,7 +33,7 @@ test('pages: the build is plain static files within GitHub Pages limits', () => 
   }
   assert.ok(total < 1e9, 'the site is under the 1 GB limit');
   for (const f of ['index.html', '404.html', 'CNAME', 'version.json', 'sw.js']) assert.ok(fs.existsSync(path.join(OUT, f)), `${f} is shipped`);
-  assert.equal(read('CNAME').trim(), 'seriesoftub.es');
+  assert.equal(read('CNAME').trim(), 'seriesoftubes.au');
 });
 
 test('pages: the repository has no hosting configuration for anywhere else', () => {
@@ -44,15 +44,16 @@ test('pages: every local file the site refers to is in the build', () => {
   const html = read('index.html');
   const refs = new Set();
   for (const m of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) refs.add(m[1]);
-  for (const m of read('sw.js').matchAll(/'(\/[^']*)'/g)) refs.add(m[1]);
+  { const core = read('sw.js').match(/const CORE = \[([^\]]*)\]/)[1]; for (const m of core.matchAll(/'([^']*)'/g)) refs.add(m[1]); }
   for (const i of JSON.parse(read('site.webmanifest')).icons || []) refs.add(i.src);
   const local = [...refs].filter((u) => !/^(https?:|data:|mailto:|#|\$\{|javascript:)/.test(u) && !u.includes('${') && !u.includes("'+"));
   assert.ok(local.length >= 5, 'found the local references');
   for (const u of local) {
-    const p = u.split(/[?#]/)[0].replace(/^\//, '') || 'index.html';
+    assert.ok(!u.startsWith('/'), `${u} is relative, so the game also works in a folder`);
+    const p = u.split(/[?#]/)[0].replace(/^\.\//, '') || 'index.html';
     assert.ok(fs.existsSync(path.join(OUT, p)), `${u} resolves inside the build`);
   }
-  // Same origin for code: the only scripts from elsewhere are the analytics counter, and no stylesheets
+  // Same origin for code: no scripts from elsewhere (the visit counter is a plain request), and no stylesheets
   // but the web fonts (see the ADR).
   for (const m of html.matchAll(/<script[^>]*\bsrc="(https?:[^"]+)"/g)) assert.fail(`page loads a script from ${m[1]}`);
   for (const m of html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="(https?:[^"]+)"/g)) assert.match(m[1], /^https:\/\/fonts\.googleapis\.com\//);
@@ -77,12 +78,13 @@ test('pages: the shipped page and dictionaries, with labels shrunk to ids, still
   assert.doesNotMatch(read('index.html'), /tr\('pnis\.delivery/, 'labels are shrunk in the shipped page');
   for (const [lang, word] of [['en', 'Customers'], ['it', 'Clienti'], ['fr', null]]) {
     const { ev, errors } = load(lang === 'en' ? { file } : { file, lang, dir });
-    ev("ACT.start({});S.cash=1e8;ACT.launchBB({city:'fra'});for(let i=0;i<40;i++)dayTick();ACT.leftTab({t:'noc'});renderAll()");
+    ev("ACT.start({});S.cash=1e8;ACT.launchBB({city:'syd'});for(let i=0;i<40;i++)dayTick();ACT.leftTab({t:'noc'});renderAll()");
     const text = ev("['hud','leftBody','panelBody','modalCard','toasts'].map(i=>document.getElementById(i)?.textContent||'').join(' ')");
     if (word) assert.ok(text.includes(word), `${lang}: ${word}`);
-    assert.doesNotMatch(text, /\b[a-z_]+\.[a-z0-9_]{6,}\b/, `${lang}: no raw labels`);
-    assert.equal(ev("tr(FLOOD_WHO[0])"), ev("tr('failures.a_botnet_of_40_000_smart')"), `${lang}: labels kept for saves still translate`);
-    assert.notEqual(ev("tr(FLOOD_WHO[0])"), 'failures.a_botnet_of_40_000_smart');
+    // Labels look like area.words_with_underscores; sentences that run together ("facendo.proprio") are not labels.
+    assert.doesNotMatch(text, /\b[a-z_]+\.[a-z0-9]+_[a-z0-9_]{2,}\b/, `${lang}: no raw labels`);
+    assert.equal(ev("tr(MK_SNIPS[0])"), ev("tr('chaos_monkey.snip_unplugged')"), `${lang}: labels kept for saves still translate`);
+    assert.notEqual(ev("tr(MK_SNIPS[0])"), 'chaos_monkey.snip_unplugged');
     assert.deepEqual(errors, []);
   }
 });

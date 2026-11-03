@@ -1,13 +1,13 @@
 {
   "name": "seriesoftubes",
   "version": "2.3.0",
-  "description": "A cartoon browser game about building the internet.",
+  "description": "A cartoon browser game about running an Australian ISP and hosting provider.",
   "private": true,
   "license": "MIT",
-  "homepage": "https://seriesoftub.es/",
+  "homepage": "https://seriesoftubes.au/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fjaeckel/seriesoftubes.git"
+    "url": "git+https://github.com/thesysadmindev/SeriesOfTubesAU.git"
   },
   "scripts": {
     "test": "node scripts/test.js",
@@ -26,5 +26,9 @@
   "devDependencies": {
     "jsdom": "24.1.3",
     "playwright-core": "1.56.0"
-  }
+  },
+  "author": "Christopher Hawker <chris@thesysadmin.au>",
+  "contributors": [
+    "Frederic Jung (Series of Tubes, the original game)"
+  ]
 }

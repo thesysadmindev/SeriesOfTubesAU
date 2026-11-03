@@ -6,9 +6,9 @@ function routeJoin(a,b){const ts=landTrenches(a,b),r=UI.route||'';if(r==='same')
 function pairLinks(a,b){return S.links.filter(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a));}
 // A city pair's metric goes with its last link, so a new link between the same cities starts on normal.
 function prunePairMet(){const m=S.pairMet;if(!m)return;const k=new Set(S.links.map(edgeKey));for(const x of Object.keys(m))if(!k.has(x))delete m[x];}
-// Short, busy subsea routes (London–Amsterdam, London–Paris) sell dark fiber pairs too.
+// A cable marked df sells dark fiber pairs too (none on this map does yet).
 function subDfCable(a,b){return cablesOk(a,b).filter(c=>CAB[c.cid].df).sort((x,y)=>x.km-y.km)[0]||null;}
-function dfAllowed(a,b){if(isSub(a,b))return !!subDfCable(a,b);return cnCity(a)===cnCity(b)&&!uaePair(a,b)&&!landX(a,b);}
+function dfAllowed(a,b){return !isSub(a,b)||!!subDfCable(a,b);}
 /* Optics you unplug go on a spares shelf instead of in the bin (#45): the next channel of that type uses a spare
    for free (only the regen sites' transponders are new), or you sell it on eBuy for part of the price. */
 const SPARE_RESALE=0.4,spareN=o=>(S&&S.spares&&S.spares[o])|0,spareValue=o=>Math.round(optCost(o)*SPARE_RESALE);
@@ -24,7 +24,7 @@ function chWhy(l,o){const O=OPT[o];if(!techOk('opt',o,O.lvl))return tr('action_h
   if((l.ch||[]).length+soldSlots(l)>=chMax(l))return soldSlots(l)?tr('action_helpers.sys_is_full_max_channels_sold',{sys:DF_SYS[l.sys].n,max:chMax(l),sold:soldSlots(l)}):tr('action_helpers.sys_is_full_max_channels',{sys:DF_SYS[l.sys].n,max:chMax(l)});
   for(const c of [l.a,l.b]){const p=S.pops[c];if(p&&RG[p.rgen||0].cls<O.rg)return tr('action_helpers.needs_routers_with_pn_ports_or',{pn:RG[mainRG(O.rg)].pn,city:CITY[c].name});}return '';}
 function bbCost(c){return 15000+CITY[c].P*20;}
-function after(){if(pzOn()){pzAfter();return;}if(S)purgeInc();compute();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
+function after(){if(S)purgeInc();compute();checkGoals();renderAll();if(S&&!$('dash').hidden)renderDash();save();}
 const isTablet=()=>innerWidth>760&&innerWidth<=1200;
 function selectLink(id){UI.sel={type:'link',id};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;$('panel').classList.remove('full');renderPanel();renderLeft();}
 function selectCity(c){UI.sel={type:'city',id:c};UI.confirm=null;if(isTablet()||isPhone())UI.leftOpen=false;const P=$('panel');if(P)P.classList.remove('full');if(!S.pops[c])UI.tab='cust';renderPanel();}

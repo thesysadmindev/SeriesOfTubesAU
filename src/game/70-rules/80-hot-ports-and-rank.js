@@ -12,7 +12,9 @@ function hotByCity(){const m={};for(const h of hotPorts())(m[h.city]=m[h.city]||
 function isTier2(){return Object.keys(S.pops).length>=5&&Object.keys(S.ixp).length>=3&&R.sessions>=15;}
 // Sparkly Seabone joined the Tier 1s in 1.12. Older saves keep the five they were playing for.
 // Tier 1s added later only count for games started after them, so old saves keep their win (#155).
-const t1Need=()=>NETS.filter(n=>n.type==='t1'&&(n.id!=='skl'||(S&&S.t1v>=2))&&(n.id!=='att'||(S&&S.t1v>=3)));
+// Tier 1 here: a PNI with every global Tier 1 and with the Big Four at home, who between them carry most Australians.
+const BIG4=['tsy','opt','tpr','voc'];
+const t1Need=()=>NETS.filter(n=>BIG4.includes(n.id)||n.type==='t1'&&(n.id!=='skl'||(S&&S.t1v>=2))&&(n.id!=='att'||(S&&S.t1v>=3)));
 /* Reach is counted through customer cones (#85): a PNI with a Tier 1 reaches everyone who buys transit from it, and
    their customers. That only ever adds reach, so the rule is easier for every save, old ones included, and needs no
    version: what was Tier 1 stays Tier 1. Networks in nobody's cone still need peering of their own. */

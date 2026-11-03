@@ -5,7 +5,7 @@ const { load } = require('./harness');
 // #198: submarine upgrades that change nothing on a cable can't be bought.
 function cable(ev, km) {
   ev(`ACT.start({});S.cash=1e11;S.lvl=13;S.day=100;S.won=true;for(const g of GOALS)S.done[g.id]=0;
-    S.links=[{id:'c',a:'atn',b:'syd',kind:'df',own:true,sub:true,sys:'roadm',km:${km},ch:['tp16'],day:0,ready:50,cut:0,mo:1}];
+    S.links=[{id:'c',a:'lax',b:'syd',kind:'df',own:true,sub:true,sys:'roadm',km:${km},ch:['tp16'],day:0,ready:50,cut:0,mo:1}];
     UI.sel={type:'link',id:'c'};renderPanel()`);
 }
 const installBtn = (dom, k) => dom.window.document.querySelector(`#panelBody [data-act=subUpgrade][data-args*="${k}"]`);
@@ -52,7 +52,7 @@ test('#198 upgrades that only help together stay buyable, and one made useless b
 test('#198 ordering a cable: useless upgrades can not be picked, and stale picks are not charged', () => {
   const { ev, dom, errors } = load();
   try {
-    ev("ACT.start({});S.cash=1e11;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'lon'});ACT.buildPop({city:'nyc'});UI.lmode='df';UI.dfSrc='cable';UI.seaDesign='standard';openLinkModal('lon','nyc')");
+    ev("ACT.start({});S.cash=1e11;S.lvl=13;S.won=true;for(const g of GOALS)S.done[g.id]=0;ACT.buildPop({city:'hba'});ACT.buildPop({city:'bne'});UI.lmode='df';UI.dfSrc='cable';UI.seaDesign='standard';openLinkModal('hba','bne')");
     // A transatlantic cable already runs every optic at its long-haul best.
     const btn = k => dom.window.document.querySelector(`#modalCard [data-act=seaPackage][data-args*="${k}"]`);
     assert.equal(btn('terminal').disabled, true);
@@ -63,7 +63,7 @@ test('#198 ordering a cable: useless upgrades can not be picked, and stale picks
     ev("UI.seaterminal=true;UI.seaengineering=true;ACT.seaDesign({v:'standard'})");
     assert.equal(btn('terminal').textContent.includes('✓'), false);
     assert.equal(btn('engineering').textContent.includes('✓'), false);
-    const cash = ev('S.cash'), cost = ev("seaQuote('lon','nyc','standard').cost");
+    const cash = ev('S.cash'), cost = ev("seaQuote('hba','bne','standard').cost");
     ev('ACT.orderCable()');
     assert.equal(cash - ev('S.cash'), cost, 'no upgrade charged');
     assert.deepEqual(errors, []);

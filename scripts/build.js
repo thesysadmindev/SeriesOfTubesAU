@@ -56,4 +56,4 @@ const scan = (dir) => { for (const e of fs.readdirSync(dir, { withFileTypes: tru
 } };
 scan(OUT);
 if (left.length) die(`unreplaced placeholders left in ${left.join(', ')}`);
-console.log(`Built Series of Tubes ${VERSION} (${BUILD_DATE}) into ${path.relative(ROOT, OUT) || OUT}/`);
+console.log(`Built Series of Tubes: Australia ${VERSION} (${BUILD_DATE}) into ${path.relative(ROOT, OUT) || OUT}/`);

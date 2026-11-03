@@ -5,18 +5,17 @@
    switching makes traffic that only passes through a POP cheaper for its router. TE (Auto-TE, RouteScript) needs
    RSVP-TE or above; RSVP tunnels detour less far than segment routing. Vendors interoperate less the higher you go:
    a core of mixed vendors running at some router's very top level has interop incidents.
-   Saves from before this, with Auto-TE already bought, keep the old rules (legacy) until they change level. Puzzles,
-   Architect runs and scenarios set TE up themselves and ignore all of this. */
+   Saves from before this, with Auto-TE already bought, keep the old rules (legacy) until they change level. */
 const CORE_LV=[N_('core.plain_igp'),N_('core.ldp_mpls'),N_('core.rsvp_te_mpls'),N_('core.sr_mpls'),N_('core.srv6')];
 const CORE_COST=[0,80000,200000,400000,750000],CORE_REQ=[1,2,3,5,7];
 const CORE_CPU=[0,.10,.08,.05,.03],CORE_PASS=[1,.6,.6,.6,.6],CORE_TE=[0,0,1.5,2,2],CORE_IOP=[0,.15,.3,.6,1];
 // Can model g run level L? Every model runs everything up to its top, except noMpls boxes (SRv6 natively, no labels).
 const rgCore=(g,L)=>{const G=RG[g];return !!G&&L<=G.cr&&!(G.noMpls&&L>=1&&L<=3);};
 // Do the core rules apply to this game at all?
-const coreOn=()=>!!(S&&S.core&&!S.core.legacy&&S.mode!=='puzzle'&&!S.pz&&!S.ar&&!S.scn);
+const coreOn=()=>!!(S&&S.core&&!S.core.legacy);
 const coreRun=()=>coreOn()?S.core.run:0;
 const inCore=c=>{const p=S.pops[c];return !!p&&rgCore(p.rgen||0,coreRun());};
-// May Auto-TE and RouteScript run? Legacy saves, puzzles and scenarios: as before.
+// May Auto-TE and RouteScript run? Legacy saves: as before.
 const coreTE=()=>!coreOn()||S.core.run>=2;
 // How far TE may detour, against the shortest path (the old controller: 2×).
 const coreTeReach=()=>coreOn()?CORE_TE[S.core.run]:2;
